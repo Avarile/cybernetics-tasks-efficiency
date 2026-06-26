@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpStatus,
   Logger,
   Param,
@@ -18,6 +19,7 @@ import { AppException, BusinessException } from 'src/utils/exception.provider';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { InitiativeRepository } from '../module-initiative/initiative.repo';
 import { KeyResultRepository } from '../module-key-result/key-result.repo';
+import { ActivityEventRepository } from './activity-event.repo';
 import { TrackingService } from './tracking.service';
 import {
   LogTimeDTO,
@@ -37,6 +39,7 @@ export class TrackingController {
     private readonly trackingService: TrackingService,
     private readonly initiativeRepo: InitiativeRepository,
     private readonly keyResultRepo: KeyResultRepository,
+    private readonly activityEventRepo: ActivityEventRepository,
     private readonly ctx: DbContextService,
   ) {}
 
@@ -283,6 +286,30 @@ export class TrackingController {
       return this.buildResponse(event, 'Outcome recorded');
     } catch (e: any) {
       this.logger.error(`recordOutcome ${slug}: ${e.message}`);
+      if (e instanceof BusinessException) throw e;
+      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Initiative timeline
+  // -------------------------------------------------------------------------
+
+  @Get('initiatives/:slug/timeline')
+  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @ApiOperation({ summary: 'Get activity timeline for an initiative' })
+  async getTimeline(
+    @Req() req: Request,
+    @Param('slug') slug: string,
+  ): Promise<IBaseResponse> {
+    try {
+      const actorId = this.actor(req);
+      const tenancy = this.ctx.forUser(actorId);
+      const ini = await this.resolveInitiative(slug, tenancy);
+      const events = await this.activityEventRepo.listBySubject('initiative', ini.id, tenancy);
+      return this.buildResponse(events, 'Timeline retrieved');
+    } catch (e: any) {
+      this.logger.error(`getTimeline ${slug}: ${e.message}`);
       if (e instanceof BusinessException) throw e;
       AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
     }
