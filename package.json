@@ -1,0 +1,5 @@
+{
+  "name": "cybernetic",
+  "private": true,
+  "workspaces": ["backend", "frontend"]
+}
