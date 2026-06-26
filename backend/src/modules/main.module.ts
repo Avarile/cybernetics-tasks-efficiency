@@ -1,3 +1,5 @@
 import { Module } from '@nestjs/common';
-@Module({ imports: [] }) // business modules added as later tasks land
+import { AuthModule } from './module-auth/auth.module';
+
+@Module({ imports: [AuthModule] })
 export class MainModule {}
