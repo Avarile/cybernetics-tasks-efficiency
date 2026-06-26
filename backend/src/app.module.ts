@@ -3,9 +3,15 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { MainModule } from './modules/main.module';
+import { ApplicationDbModule } from './infra/application-db/application-db.module';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), ScheduleModule.forRoot(), MainModule],
+  imports: [
+    EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
+    ApplicationDbModule,
+    MainModule,
+  ],
   controllers: [AppController],
 })
 export class AppModule {}
