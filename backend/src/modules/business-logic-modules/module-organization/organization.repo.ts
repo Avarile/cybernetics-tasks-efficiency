@@ -98,12 +98,14 @@ export class OrganizationRepository implements BaseRepo<IOrganizationEntity> {
         );
       }
 
-      // Exclude immutable fields
+      // Exclude immutable fields and soft-delete fields (use delete() for that)
       const {
         id: _id,
         slug: _slug,
         createdAt: _createdAt,
         updatedAt: _updatedAt,
+        isDeleted: _isDeleted,
+        deletedAt: _deletedAt,
         ...updateData
       } = payload as any;
 

@@ -59,4 +59,15 @@ describe('OrganizationRepository (real DB)', () => {
     const found = await repo.findById(created.id, ctx);
     expect(found?.name).toBe('New Name');
   });
+
+  it('update with isDeleted=true does NOT soft-delete the row', async () => {
+    const ctx = getCtx();
+    const created = await repo.create({ name: 'Durable Org' }, ctx);
+    // Attempt to flip soft-delete via update — must be stripped
+    await repo.update(created.id, { isDeleted: true } as any, ctx);
+    // Row must still be visible via findById
+    const found = await repo.findById(created.id, ctx);
+    expect(found).not.toBeNull();
+    expect(found?.id).toBe(created.id);
+  });
 });

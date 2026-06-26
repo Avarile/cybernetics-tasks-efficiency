@@ -95,22 +95,6 @@ export class UpdatePersonDTO implements IUpdatePerson {
   @IsNumber()
   teamId?: number | null;
 
-  @ApiProperty({ description: 'Updated at timestamp', required: false })
-  @IsOptional()
-  @IsString()
-  updatedAt?: string | null;
-
-  @ApiProperty({ description: 'Deleted at timestamp', required: false })
-  @IsOptional()
-  @IsString()
-  deletedAt?: string | null;
-
-  @ApiProperty({ description: 'Is deleted flag', required: false })
-  @IsOptional()
-  @IsBoolean()
-  @Type(() => Boolean)
-  isDeleted?: boolean;
-
   @ApiProperty({ description: 'Is active flag', required: false })
   @IsOptional()
   @IsBoolean()

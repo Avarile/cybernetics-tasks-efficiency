@@ -21,6 +21,7 @@
 import { Pool, PoolClient } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import 'dotenv/config';
 import { IDBConfigOptions } from '../src/infra/application-db/application-db.module';
 
@@ -39,7 +40,7 @@ function buildUri(): string {
 }
 
 function genSchemaName(): string {
-  return `test_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
+  return `test_${crypto.randomBytes(6).toString('hex')}`;
 }
 
 /**

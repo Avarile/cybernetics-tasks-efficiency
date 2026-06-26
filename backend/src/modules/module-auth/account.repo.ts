@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import ApplicationDBProvider from 'src/infra/application-db/db-connection';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
 import { person } from 'src/infra/application-db/schema/identity.schema';
@@ -14,7 +14,11 @@ export class PersonAccountRepository {
   async findByEmail(email: string, ctx: IDBConfigOptions): Promise<IPersonRecord | null> {
     const { dbConnection, client } = await this.db.getTenantDBConnection(ctx);
     try {
-      const rows = await dbConnection.select().from(person).where(eq(person.email, email)).limit(1);
+      const rows = await dbConnection
+        .select()
+        .from(person)
+        .where(and(eq(person.email, email), eq(person.isDeleted, false), eq(person.isActive, true)))
+        .limit(1);
       return (rows[0] as IPersonRecord) ?? null;
     } catch (err) {
       this.logger.error('findByEmail failed', err);
