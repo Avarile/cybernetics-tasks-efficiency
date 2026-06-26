@@ -357,6 +357,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 describe('env', () => {
   it('parses with defaults and required overrides', () => {
     jest.resetModules(); // env.ts parses once at import; reset so our overrides take effect
+    delete process.env.COMPANY_SCHEMA; // exercise the 'public' default, not the value jest.setup loaded from .env
     process.env.JWT_SECRET = 'test-secret';
     process.env.ADMIN_ACCOUNT = 'admin@co.com';
     process.env.ADMIN_ACCOUNT_PASSWORD = 'pw';
