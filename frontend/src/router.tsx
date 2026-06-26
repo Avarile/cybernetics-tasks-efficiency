@@ -5,6 +5,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { OkrTree } from './pages/OkrTree';
 import { MyWork } from './pages/MyWork';
+import { InitiativeTimeline } from './pages/InitiativeTimeline';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
       { path: 'okr', element: <OkrTree /> },
       { path: 'my-work', element: <MyWork /> },
+      { path: 'initiatives/:slug/timeline', element: <InitiativeTimeline /> },
     ],
   },
 ]);
