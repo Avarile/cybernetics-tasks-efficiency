@@ -15,6 +15,8 @@ describe('Health (e2e)', () => {
 
   it('GET /api/health → ok', async () => {
     const res = await request(app.getHttpServer()).get('/api/health').expect(200);
-    expect(res.body).toEqual({ status: 'ok' });
+    expect(res.body.status_code).toBe(200);
+    expect(res.body.error).toBeNull();
+    expect(res.body.data).toEqual({ status: 'ok' });
   });
 });
