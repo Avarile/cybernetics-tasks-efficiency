@@ -51,9 +51,9 @@ class ApplicationDBProvider {
   }
 
   public async getMasterConnection() {
+    const pool = this.getOrCreatePool(connectionURI);
+    const client = await pool.connect();
     try {
-      const pool = this.getOrCreatePool(connectionURI);
-      const client = await pool.connect();
       await client.query(`SET search_path TO "public";`);
       const dbConnection = drizzle(client, {
         logger: is_live_env ? false : true,
@@ -61,15 +61,16 @@ class ApplicationDBProvider {
 
       return { dbConnection, client };
     } catch (error) {
+      client.release();
       this.logger.error('Failed to connect to the database', error);
       throw error;
     }
   }
 
   public async getTenantDBConnection(payload: IDBConfigOptions) {
+    const pool = this.getOrCreatePool(payload.database_uri);
+    const client = await pool.connect();
     try {
-      const pool = this.getOrCreatePool(payload.database_uri);
-      const client = await pool.connect();
       // Set search_path to tenant schema first, then public for extension types
       // (e.g. vector, uuid-ossp register in public; must remain visible)
       await client.query(`SET search_path TO "${payload.schema_id}", public;`);
@@ -80,6 +81,7 @@ class ApplicationDBProvider {
 
       return { dbConnection, client };
     } catch (error) {
+      client.release();
       this.logger.error('Failed to connect to the database', error);
       throw error;
     }
