@@ -1,0 +1,234 @@
+import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
+import { ActivityEventRepository } from './activity-event.repo';
+import { KeyResultMeasurementRepository } from './projection/key-result-measurement.repo';
+import { KeyResultRepository } from '../module-key-result/key-result.repo';
+import {
+  ACTIVITY_EVENT_EMITTED,
+} from './tracking.events';
+import {
+  IActivityEventInput,
+  IActivityEventEntity,
+} from './tracking.interface';
+
+@Injectable()
+export class TrackingService {
+  constructor(
+    private readonly activityEvents: ActivityEventRepository,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly measurements: KeyResultMeasurementRepository,
+    private readonly keyResults: KeyResultRepository,
+  ) {}
+
+  private async emit(
+    input: IActivityEventInput,
+    ctx: IDBConfigOptions,
+  ): Promise<IActivityEventEntity> {
+    const event = await this.activityEvents.append(input, ctx);
+    await this.eventEmitter.emitAsync(ACTIVITY_EVENT_EMITTED, { event, ctx });
+    return event;
+  }
+
+  async start(
+    initiativeId: number,
+    actorId: number,
+    ctx: IDBConfigOptions,
+    payload?: Record<string, unknown>,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'started',
+        actorPersonId: actorId,
+        payload,
+      },
+      ctx,
+    );
+  }
+
+  async pause(
+    initiativeId: number,
+    actorId: number,
+    ctx: IDBConfigOptions,
+    payload?: Record<string, unknown>,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'paused',
+        actorPersonId: actorId,
+        payload,
+      },
+      ctx,
+    );
+  }
+
+  async resume(
+    initiativeId: number,
+    actorId: number,
+    ctx: IDBConfigOptions,
+    payload?: Record<string, unknown>,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'resumed',
+        actorPersonId: actorId,
+        payload,
+      },
+      ctx,
+    );
+  }
+
+  async block(
+    initiativeId: number,
+    actorId: number,
+    ctx: IDBConfigOptions,
+    payload?: Record<string, unknown>,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'blocked',
+        actorPersonId: actorId,
+        payload,
+      },
+      ctx,
+    );
+  }
+
+  async unblock(
+    initiativeId: number,
+    actorId: number,
+    ctx: IDBConfigOptions,
+    payload?: Record<string, unknown>,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'unblocked',
+        actorPersonId: actorId,
+        payload,
+      },
+      ctx,
+    );
+  }
+
+  async complete(
+    initiativeId: number,
+    actorId: number,
+    ctx: IDBConfigOptions,
+    payload?: Record<string, unknown>,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'completed',
+        actorPersonId: actorId,
+        payload,
+      },
+      ctx,
+    );
+  }
+
+  async cancel(
+    initiativeId: number,
+    actorId: number,
+    ctx: IDBConfigOptions,
+    payload?: Record<string, unknown>,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'cancelled',
+        actorPersonId: actorId,
+        payload,
+      },
+      ctx,
+    );
+  }
+
+  async logTime(
+    initiativeId: number,
+    actorId: number,
+    minutes: number,
+    ctx: IDBConfigOptions,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'time_logged',
+        actorPersonId: actorId,
+        payload: { minutes },
+      },
+      ctx,
+    );
+  }
+
+  async recordReason(
+    subjectType: 'initiative' | 'key_result' | 'objective',
+    subjectId: number,
+    actorId: number,
+    { reason, reasonClass }: { reason: string; reasonClass?: string },
+    ctx: IDBConfigOptions,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType,
+        subjectId,
+        type: 'reason_recorded',
+        actorPersonId: actorId,
+        payload: { reason, reasonClass },
+      },
+      ctx,
+    );
+  }
+
+  async recordOutcome(
+    initiativeId: number,
+    actorId: number,
+    { result }: { result: string },
+    ctx: IDBConfigOptions,
+  ): Promise<IActivityEventEntity> {
+    return this.emit(
+      {
+        subjectType: 'initiative',
+        subjectId: initiativeId,
+        type: 'outcome_recorded',
+        actorPersonId: actorId,
+        payload: { result },
+      },
+      ctx,
+    );
+  }
+
+  async measureKeyResult(
+    keyResultId: number,
+    actorId: number,
+    value: string,
+    ctx: IDBConfigOptions,
+  ): Promise<IActivityEventEntity> {
+    const event = await this.emit(
+      {
+        subjectType: 'key_result',
+        subjectId: keyResultId,
+        type: 'key_result_measured',
+        actorPersonId: actorId,
+        payload: { value },
+      },
+      ctx,
+    );
+    await this.measurements.add(keyResultId, value, event.occurredAt, event.id, ctx);
+    await this.keyResults.updateCurrentValue(keyResultId, value, ctx);
+    return event;
+  }
+}
