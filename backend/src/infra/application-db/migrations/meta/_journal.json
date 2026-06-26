@@ -15,6 +15,13 @@
       "when": 1782511073281,
       "tag": "0001_conscious_captain_universe",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782511295681,
+      "tag": "0002_absurd_silver_fox",
+      "breakpoints": true
     }
   ]
 }
