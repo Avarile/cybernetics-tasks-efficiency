@@ -1,4 +1,5 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { Role } from 'src/middleware/roles.decorator';
 
 export class RegisterDTO {
   @IsString()
@@ -12,8 +13,8 @@ export class RegisterDTO {
   password!: string;
 
   @IsOptional()
-  @IsString()
-  role?: string;
+  @IsEnum(Role)
+  role?: Role;
 }
 
 export class LoginDTO {

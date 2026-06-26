@@ -68,4 +68,14 @@ describe('AuthGuard', () => {
       expect.objectContaining({ code: 'UNAUTHORIZED' }),
     );
   });
+
+  it('throws UNAUTHORIZED when token is expired', () => {
+    const payload = { id: 1, slug: 'abc', email: 'user@test.com', role: 'member' };
+    const token = jwt.sign(payload, 'test-secret-key', { expiresIn: '-1s' });
+    const { context } = makeContext(`Bearer ${token}`);
+
+    expect(() => guard.canActivate(context)).toThrow(
+      expect.objectContaining({ code: 'UNAUTHORIZED' }),
+    );
+  });
 });

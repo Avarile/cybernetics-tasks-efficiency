@@ -5,6 +5,7 @@ import env from 'src/utils/env';
 import { AppException } from 'src/utils/exception.provider';
 import { PersonAccountRepository } from './account.repo';
 import { DbContextService } from 'src/infra/application-db/db-context';
+import { Role } from 'src/middleware/roles.decorator';
 
 @Injectable()
 export class AuthenticationService {
@@ -13,7 +14,7 @@ export class AuthenticationService {
     private readonly ctx: DbContextService,
   ) {}
 
-  async register(input: { name: string; email: string; password: string; role?: string }) {
+  async register(input: { name: string; email: string; password: string; role?: Role }) {
     const sys = this.ctx.system();
     const existing = await this.accounts.findByEmail(input.email, sys);
     if (existing) AppException.throw('RESOURCE_CONFLICT', 'Email already registered');
@@ -23,7 +24,7 @@ export class AuthenticationService {
         name: input.name,
         email: input.email,
         passwordHash,
-        role: (input.role as any) ?? 'member',
+        role: input.role ?? 'member',
       },
       sys,
     );
@@ -40,7 +41,7 @@ export class AuthenticationService {
 
   private issue(person: { id: number; slug: string; email: string; role: string }) {
     const payload = { id: person.id, slug: person.slug, email: person.email, role: person.role };
-    const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as any });
+    const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] });
     return { token, user: payload };
   }
 }
