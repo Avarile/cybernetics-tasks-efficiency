@@ -117,10 +117,11 @@ cybernetic/
 {
   "name": "cybernetic",
   "private": true,
-  "workspaces": ["backend", "frontend"],
-  "packageManager": "yarn@4.0.0"
+  "workspaces": ["backend", "frontend"]
 }
 ```
+
+> Uses **Yarn classic (1.x) workspaces** — no `packageManager`/Berry pin (the dev machine runs yarn 1.22). `yarn install` at the repo root links both workspaces.
 
 - [ ] **Step 2: `backend/package.json`** — mirror the reference's deps but trim to this phase (no minio/meilisearch/stripe/rabbitmq/retell/sendgrid/cohere/openai yet).
 
@@ -429,7 +430,7 @@ git commit -m "feat: zod-validated environment config"
   - `class DbContextService` with `forUser(userId: number): IDBConfigOptions` and `system(): IDBConfigOptions` — builds the single-tenant context from `env`.
   - `@Global() ApplicationDbModule` exporting both providers.
 
-- [ ] **Step 1: `db-connection.ts`** — copy the reference `db-connection.ts` almost verbatim. Keep `getTenantDBConnection` (it does `SET search_path TO "<schema_id>", public`). Build `connectionURI` from `env.DATABASE_MAIN_*`. Keep the pool map.
+- [ ] **Step 1: `db-connection.ts`** — adapt the reference `db-connection.ts`, but **trim the multi-tenant provisioning** (drop `initTenantSchema` and the `constructMigration`/`init_migration` import, and the master-vs-tenant pool split — those reference files we don't have). Keep exactly: the lazy pool map (`getOrCreatePool`), `getMasterConnection()`, and `getTenantDBConnection(opts)` which does `SET search_path TO "<schema_id>", public` then `drizzle(client)`. Build `connectionURI` from `env.DATABASE_MAIN_*`. Pools are created lazily on first use (constructor only logs) — so importing this provider never requires a live DB; only methods that actually query do.
 
 - [ ] **Step 2: `application-db.module.ts`**
 
@@ -594,10 +595,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
 ```typescript
 // src/middleware/response.interceptor.ts
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { CallHandler, ExecutionContext, HttpStatus, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
-export @Injectable() class ResponseInterceptor implements NestInterceptor {
-  intercept(_: ExecutionContext, next: CallHandler): Observable<any> { return next.handle(); }
+import { map } from 'rxjs/operators';
+
+@Injectable()
+export class ResponseInterceptor implements NestInterceptor {
+  intercept(_: ExecutionContext, next: CallHandler): Observable<any> {
+    return next.handle().pipe(
+      map((body) => {
+        // Pass through controller responses that already use the envelope
+        if (body && typeof body === 'object' && 'status_code' in body && 'error' in body) return body;
+        // Normalise any bare return into the standard IBaseResponse envelope
+        return { data: body ?? null, status_code: HttpStatus.OK, message: 'OK', error: null, timestamp: new Date() };
+      }),
+    );
+  }
 }
 ```
 
