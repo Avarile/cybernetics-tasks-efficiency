@@ -232,9 +232,12 @@ module.exports = {
   testRegex: '.*\\.spec\\.ts$',
   transform: { '^.+\\.(t|j)s$': 'ts-jest' },
   moduleNameMapper: { '^src/(.*)$': '<rootDir>/src/$1' },
+  setupFiles: ['<rootDir>/test/jest.setup.ts'],
   testEnvironment: 'node',
 };
 ```
+
+> **Controller-provided files (already on disk — do NOT create or overwrite these):** repo-root `.gitignore`, `backend/.env` (real dev secrets, gitignored), `backend/test/jest.setup.ts` (`import 'dotenv/config';`), and `backend/test/jest-e2e.json`. You only create `backend/.env.example` with placeholder values. `git add backend/` is safe — `.env` is gitignored.
 
 - [ ] **Step 5: Write the failing e2e test** `backend/test/health.e2e-spec.ts`
 
@@ -353,6 +356,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```typescript
 describe('env', () => {
   it('parses with defaults and required overrides', () => {
+    jest.resetModules(); // env.ts parses once at import; reset so our overrides take effect
     process.env.JWT_SECRET = 'test-secret';
     process.env.ADMIN_ACCOUNT = 'admin@co.com';
     process.env.ADMIN_ACCOUNT_PASSWORD = 'pw';
@@ -450,11 +454,12 @@ export class ApplicationDbModule {}
 
 ```typescript
 import { DbContextService } from './db-context';
+import env from 'src/utils/env';
 describe('DbContextService', () => {
   it('builds single-tenant context from env', () => {
     const svc = new DbContextService();
     const ctx = svc.forUser(42);
-    expect(ctx.schema_id).toBe('public');   // COMPANY_SCHEMA default
+    expect(ctx.schema_id).toBe(env.COMPANY_SCHEMA);  // env-relative, not a hardcoded literal
     expect(ctx.user_id).toBe(42);
     expect(ctx.database_uri).toContain('postgresql://');
   });
