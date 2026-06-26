@@ -8,6 +8,13 @@
       "when": 1782492735003,
       "tag": "0000_right_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782511073281,
+      "tag": "0001_conscious_captain_universe",
+      "breakpoints": true
     }
   ]
 }
