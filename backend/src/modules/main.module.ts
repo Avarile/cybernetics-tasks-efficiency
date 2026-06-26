@@ -6,6 +6,7 @@ import { DepartmentModule } from './business-logic-modules/module-department/dep
 import { TeamModule } from './business-logic-modules/module-team/team.module';
 import { ObjectiveModule } from './business-logic-modules/module-objective/objective.module';
 import { KeyResultModule } from './business-logic-modules/module-key-result/key-result.module';
+import { InitiativeModule } from './business-logic-modules/module-initiative/initiative.module';
 
-@Module({ imports: [AuthModule, PersonModule, OrganizationModule, DepartmentModule, TeamModule, ObjectiveModule, KeyResultModule] })
+@Module({ imports: [AuthModule, PersonModule, OrganizationModule, DepartmentModule, TeamModule, ObjectiveModule, KeyResultModule, InitiativeModule] })
 export class MainModule {}
