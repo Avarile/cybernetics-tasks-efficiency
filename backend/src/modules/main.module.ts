@@ -8,6 +8,7 @@ import { ObjectiveModule } from './business-logic-modules/module-objective/objec
 import { KeyResultModule } from './business-logic-modules/module-key-result/key-result.module';
 import { InitiativeModule } from './business-logic-modules/module-initiative/initiative.module';
 import { AlignmentModule } from './business-logic-modules/module-alignment/alignment.module';
+import { TrackingModule } from './business-logic-modules/module-tracking/tracking.module';
 
-@Module({ imports: [AuthModule, PersonModule, OrganizationModule, DepartmentModule, TeamModule, ObjectiveModule, KeyResultModule, InitiativeModule, AlignmentModule] })
+@Module({ imports: [AuthModule, PersonModule, OrganizationModule, DepartmentModule, TeamModule, ObjectiveModule, KeyResultModule, InitiativeModule, AlignmentModule, TrackingModule] })
 export class MainModule {}
