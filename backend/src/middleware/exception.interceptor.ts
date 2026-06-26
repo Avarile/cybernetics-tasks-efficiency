@@ -4,32 +4,55 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { BusinessException } from 'src/utils/exception.provider';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
-    const res = host.switchToHttp().getResponse();
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let code = 'SYSTEM_INTERNAL_ERROR';
+    const ctx = host.switchToHttp();
+    const res = ctx.getResponse();
+    const req = ctx.getRequest();
+
+    let status_code = HttpStatus.INTERNAL_SERVER_ERROR;
+    let error = 'SYSTEM_INTERNAL_ERROR';
     let message = 'Internal server error';
 
     if (exception instanceof BusinessException) {
-      status = exception.status;
-      code = exception.code;
+      status_code = exception.status;
+      error = exception.code;
       message = exception.message;
     } else if (exception instanceof HttpException) {
-      status = exception.getStatus();
-      message = exception.message;
-      code = 'HTTP_ERROR';
+      status_code = exception.getStatus();
+      const resp = exception.getResponse();
+
+      if (typeof resp === 'string') {
+        message = resp;
+        error = HttpStatus[status_code] as string;
+      } else {
+        const respObj = resp as { message?: string | string[]; error?: string };
+        message = Array.isArray(respObj.message)
+          ? respObj.message.join(', ')
+          : (respObj.message ?? exception.message);
+        error = (respObj.error as string) || (HttpStatus[status_code] as string);
+      }
+    } else {
+      // Generic Error or unknown — log real error, do NOT leak to client
+      const err = exception instanceof Error ? exception : new Error(String(exception));
+      this.logger.error(
+        `Unhandled exception on ${req?.method ?? ''} ${req?.url ?? ''}: ${err.message}`,
+        err.stack,
+      );
     }
 
-    res.status(status).json({
+    res.status(status_code).json({
       data: null,
-      status_code: status,
+      status_code,
       message,
-      error: code,
+      error,
       timestamp: new Date(),
     });
   }
