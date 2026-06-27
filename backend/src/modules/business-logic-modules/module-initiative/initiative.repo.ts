@@ -94,11 +94,15 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
       await this.dbProvider.getTenantDBConnection(tenancyInfo);
 
     try {
-      const existing = await this.findById(id, tenancyInfo);
+      const [existing] = await dbConnection
+        .select({ id: initiative.id })
+        .from(initiative)
+        .where(and(eq(initiative.id, id), eq(initiative.isDeleted, false)));
+
       if (!existing) {
         AppException.throw(
           'RESOURCE_NOT_FOUND',
-          `Error occurred during updating initiative, initiative id: ${id} not found`,
+          `Initiative id ${id} not found`,
         );
       }
 
@@ -465,6 +469,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
       const baseQuery = dbConnection
         .select({ ...getTableColumns(initiative) })
         .from(initiative)
+        .where(eq(initiative.isDeleted, false))
         .$dynamic();
 
       const result = await withPagination(

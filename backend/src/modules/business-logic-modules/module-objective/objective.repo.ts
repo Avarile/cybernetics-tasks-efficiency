@@ -96,11 +96,15 @@ export class ObjectiveRepository implements BaseRepo<IObjectiveEntity> {
       await this.dbProvider.getTenantDBConnection(tenancyInfo);
 
     try {
-      const existing = await this.findById(id, tenancyInfo);
+      const [existing] = await dbConnection
+        .select({ id: objective.id })
+        .from(objective)
+        .where(and(eq(objective.id, id), eq(objective.isDeleted, false)));
+
       if (!existing) {
         AppException.throw(
           'RESOURCE_NOT_FOUND',
-          `Error occurred during updating objective, objective id: ${id} not found`,
+          `Objective id ${id} not found`,
         );
       }
 
@@ -409,6 +413,7 @@ export class ObjectiveRepository implements BaseRepo<IObjectiveEntity> {
         .select({ ...getTableColumns(objective), ownerName: person.name })
         .from(objective)
         .leftJoin(person, eq(objective.ownerPersonId, person.id))
+        .where(eq(objective.isDeleted, false))
         .$dynamic();
 
       const result = await withPagination(
