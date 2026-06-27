@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ApplicationDbModule } from 'src/infra/application-db/application-db.module';
-import { AuthModule } from 'src/modules/module-auth/auth.module';
 import { InitiativeModule } from '../module-initiative/initiative.module';
 import { KeyResultModule } from '../module-key-result/key-result.module';
 import { ActivityEventRepository } from './activity-event.repo';
@@ -11,7 +9,7 @@ import { TrackingService } from './tracking.service';
 import { TrackingController } from './tracking.controller';
 
 @Module({
-  imports: [ApplicationDbModule, AuthModule, InitiativeModule, KeyResultModule],
+  imports: [InitiativeModule, KeyResultModule],
   controllers: [TrackingController],
   providers: [
     ActivityEventRepository,

@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from './module-auth/auth.module';
 import { PersonModule } from './business-logic-modules/module-person/person.module';
 import { OrganizationModule } from './business-logic-modules/module-organization/organization.module';
 import { DepartmentModule } from './business-logic-modules/module-department/department.module';
@@ -10,6 +9,21 @@ import { InitiativeModule } from './business-logic-modules/module-initiative/ini
 import { AlignmentModule } from './business-logic-modules/module-alignment/alignment.module';
 import { TrackingModule } from './business-logic-modules/module-tracking/tracking.module';
 import { InterventionModule } from './business-logic-modules/module-intervention/intervention.module';
+import { AuthModule } from './module-auth/auth.module';
 
-@Module({ imports: [AuthModule, PersonModule, OrganizationModule, DepartmentModule, TeamModule, ObjectiveModule, KeyResultModule, InitiativeModule, AlignmentModule, TrackingModule, InterventionModule] })
+@Module({
+  imports: [
+    AuthModule,
+    PersonModule,
+    OrganizationModule,
+    DepartmentModule,
+    TeamModule,
+    ObjectiveModule,
+    KeyResultModule,
+    InitiativeModule,
+    AlignmentModule,
+    TrackingModule,
+    InterventionModule,
+  ],
+})
 export class MainModule {}
