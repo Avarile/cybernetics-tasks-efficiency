@@ -13,7 +13,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { defaultFields } from './identity.schema';
+import { defaultFields } from './common.schema';
 import { initiativeStatus } from './okr.schema';
 
 // ---------------------------------------------------------------------------

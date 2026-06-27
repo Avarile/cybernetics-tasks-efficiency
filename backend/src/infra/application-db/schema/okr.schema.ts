@@ -8,7 +8,7 @@ import {
   timestamp,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { defaultFields } from './identity.schema';
+import { defaultFields } from './common.schema';
 
 // ---------------------------------------------------------------------------
 // Enums
