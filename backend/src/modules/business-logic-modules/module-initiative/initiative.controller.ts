@@ -38,9 +38,7 @@ export class InitiativeController {
   constructor(
     private readonly initiativeRepository: InitiativeRepository,
     private readonly ctx: DbContextService,
-  ) {
-    this.logger.warn('InitiativeController initialized');
-  }
+  ) {}
 
   @Post('/create')
   @Roles(Role.admin, Role.manager)

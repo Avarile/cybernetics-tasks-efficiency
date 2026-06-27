@@ -36,9 +36,7 @@ export class ObjectiveController {
   constructor(
     private readonly objectiveRepository: ObjectiveRepository,
     private readonly ctx: DbContextService,
-  ) {
-    this.logger.warn('ObjectiveController initialized');
-  }
+  ) {}
 
   @Post('/create')
   @Roles(Role.admin, Role.manager)
