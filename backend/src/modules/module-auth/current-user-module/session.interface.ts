@@ -3,4 +3,6 @@ export interface IUserSession {
   slug: string;
   email: string;
   role: 'admin' | 'manager' | 'member' | 'executive';
+  departmentId?: number | null;
+  teamId?: number | null;
 }
