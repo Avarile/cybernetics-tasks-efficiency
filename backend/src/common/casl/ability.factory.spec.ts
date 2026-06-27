@@ -45,4 +45,10 @@ describe('defineAbilityFor', () => {
     expect(a.can('update', subject('Objective', { ownerPersonId: 9, scope: 'org' }))).toBe(false);
     expect(a.can('read', 'ActivityEvent')).toBe(true);
   });
+
+  it('manager without a team cannot manage team-scoped objectives', () => {
+    const a = defineAbilityFor(user({ id: 5, role: 'manager', teamId: null }));
+    expect(a.can('update', subject('Objective', { scope: 'team', scopeRefId: 42 }))).toBe(false);
+    expect(a.can('update', subject('Objective', { ownerPersonId: 5 }))).toBe(true);
+  });
 });

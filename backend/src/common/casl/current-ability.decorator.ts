@@ -6,7 +6,7 @@ import { defineAbilityFor } from './ability.factory';
 export const CurrentAbility = createParamDecorator(
   (_: unknown, ctx: ExecutionContext): AppAbility => {
     const req = ctx.switchToHttp().getRequest();
-    if (!req.ability) req.ability = defineAbilityFor(req.user);
+    if (!req.ability && req.user) req.ability = defineAbilityFor(req.user);
     return req.ability;
   },
 );

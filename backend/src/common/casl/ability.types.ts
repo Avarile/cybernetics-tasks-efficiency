@@ -1,5 +1,4 @@
-import { ForcedSubject, PureAbility } from '@casl/ability';
-import { MongoQuery } from '@casl/ability/dist/types/matchers/conditions';
+import { ForcedSubject, MongoQuery, PureAbility } from '@casl/ability';
 
 export type AppAction = 'manage' | 'create' | 'read' | 'update' | 'delete';
 
