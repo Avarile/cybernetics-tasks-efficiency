@@ -25,7 +25,6 @@ export class ObjectiveService {
   }
 
   async update(id: number, payload: IUpdateObjective, ctx: IDBConfigOptions): Promise<IObjectiveEntity> {
-    await this.requireById(id, ctx);
     return this.repo.update(id, payload, ctx);
   }
 

@@ -5,8 +5,10 @@ import { AuthenticationService } from './authentication.service';
 import { RegisterDTO, LoginDTO } from './auth.dto';
 import { IBaseResponse } from 'src/utils/shared/interface';
 import { buildCreated, buildOk } from 'src/utils/shared/response.factory';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('auth')
+@Public()
 @SkipThrottle({ default: false })
 @Controller('auth')
 export class AuthenticationController {

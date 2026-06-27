@@ -1,4 +1,5 @@
 import * as jwt from 'jsonwebtoken';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
 
 jest.mock('src/utils/env', () => ({
@@ -22,15 +23,21 @@ function makeContext(authHeader?: string) {
   if (authHeader !== undefined) req.headers['authorization'] = authHeader;
   const context = {
     switchToHttp: () => ({ getRequest: () => req }),
+    getHandler: () => ({}),
+    getClass: () => ({}),
   } as any;
   return { context, req };
+}
+
+function makeReflector(isPublic: boolean): Reflector {
+  return { getAllAndOverride: () => isPublic } as unknown as Reflector;
 }
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
 
   beforeEach(() => {
-    guard = new AuthGuard();
+    guard = new AuthGuard(makeReflector(false));
   });
 
   it('sets req.user and returns true for a valid Bearer token', () => {
@@ -77,5 +84,12 @@ describe('AuthGuard', () => {
     expect(() => guard.canActivate(context)).toThrow(
       expect.objectContaining({ code: 'UNAUTHORIZED' }),
     );
+  });
+
+  it('returns true without checking token when route is marked @Public()', () => {
+    const publicGuard = new AuthGuard(makeReflector(true));
+    const { context } = makeContext(); // no Authorization header
+
+    expect(publicGuard.canActivate(context)).toBe(true);
   });
 });
