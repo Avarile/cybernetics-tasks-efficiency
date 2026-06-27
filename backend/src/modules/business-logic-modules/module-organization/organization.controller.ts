@@ -24,6 +24,7 @@ import { Roles, Role } from 'src/common/decorators/roles.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
+import { AppException } from 'src/utils/exception.provider';
 
 @ApiTags('organizations')
 @Controller('organizations')
@@ -95,11 +96,7 @@ export class OrganizationController {
     @CurrentUser() user: IUserSession,
     @Param() params: FindOrganizationByNameDTO,
   ): Promise<IBaseResponse> {
-    const result = await this.organizationService.findByName(params.name, this.ctx.forUser(user.id));
-    if (!result) {
-      const { AppException } = await import('src/utils/exception.provider');
-      AppException.throw('RESOURCE_NOT_FOUND', `Organization with name ${params.name} not found`);
-    }
+    const result = await this.organizationService.requireByName(params.name, this.ctx.forUser(user.id));
     return buildOk(result, 'Organization found');
   }
 
@@ -110,11 +107,7 @@ export class OrganizationController {
     @CurrentUser() user: IUserSession,
     @Param() params: FindOrganizationBySlugDTO,
   ): Promise<IBaseResponse> {
-    const result = await this.organizationService.findBySlug(params.slug, this.ctx.forUser(user.id));
-    if (!result) {
-      const { AppException } = await import('src/utils/exception.provider');
-      AppException.throw('RESOURCE_NOT_FOUND', `Organization with slug ${params.slug} not found`);
-    }
+    const result = await this.organizationService.requireBySlug(params.slug, this.ctx.forUser(user.id));
     return buildOk(result, 'Organization found');
   }
 

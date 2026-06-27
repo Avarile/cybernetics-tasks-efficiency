@@ -45,7 +45,19 @@ export class OrganizationService {
     return this.repo.findByName(name, ctx);
   }
 
+  async requireByName(name: string, ctx: IDBConfigOptions): Promise<IOrganizationEntity> {
+    const entity = await this.repo.findByName(name, ctx);
+    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Organization '${name}' not found`);
+    return entity!;
+  }
+
   async findBySlug(slug: string, ctx: IDBConfigOptions): Promise<IOrganizationEntity | null> {
     return this.repo.findBySlug(slug, ctx);
+  }
+
+  async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IOrganizationEntity> {
+    const entity = await this.repo.findBySlug(slug, ctx);
+    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Organization '${slug}' not found`);
+    return entity!;
   }
 }

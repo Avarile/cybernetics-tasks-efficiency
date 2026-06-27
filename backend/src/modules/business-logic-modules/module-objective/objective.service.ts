@@ -50,6 +50,12 @@ export class ObjectiveService {
     return this.repo.findBySlug(slug, ctx);
   }
 
+  async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IObjectiveEntity> {
+    const entity = await this.repo.findBySlug(slug, ctx);
+    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Objective '${slug}' not found`);
+    return entity!;
+  }
+
   async findByOwner(ownerPersonId: number, ctx: IDBConfigOptions): Promise<IObjectiveEntity[]> {
     return this.repo.findByOwner(ownerPersonId, ctx);
   }

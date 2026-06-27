@@ -24,6 +24,7 @@ import { Roles, Role } from 'src/common/decorators/roles.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
+import { AppException } from 'src/utils/exception.provider';
 
 @ApiTags('persons')
 @Controller('persons')
@@ -95,11 +96,7 @@ export class PersonController {
     @CurrentUser() user: IUserSession,
     @Param() params: FindPersonByNameDTO,
   ): Promise<IBaseResponse> {
-    const result = await this.personService.findByName(params.name, this.ctx.forUser(user.id));
-    if (!result) {
-      const { AppException } = await import('src/utils/exception.provider');
-      AppException.throw('RESOURCE_NOT_FOUND', `Person with name ${params.name} not found`);
-    }
+    const result = await this.personService.requireByName(params.name, this.ctx.forUser(user.id));
     return buildOk(result, 'Person found');
   }
 
@@ -110,11 +107,7 @@ export class PersonController {
     @CurrentUser() user: IUserSession,
     @Param() params: FindPersonBySlugDTO,
   ): Promise<IBaseResponse> {
-    const result = await this.personService.findBySlug(params.slug, this.ctx.forUser(user.id));
-    if (!result) {
-      const { AppException } = await import('src/utils/exception.provider');
-      AppException.throw('RESOURCE_NOT_FOUND', `Person with slug ${params.slug} not found`);
-    }
+    const result = await this.personService.requireBySlug(params.slug, this.ctx.forUser(user.id));
     return buildOk(result, 'Person found');
   }
 

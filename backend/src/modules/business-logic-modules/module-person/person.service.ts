@@ -45,7 +45,19 @@ export class PersonService {
     return this.repo.findByName(name, ctx);
   }
 
+  async requireByName(name: string, ctx: IDBConfigOptions): Promise<IPersonEntity> {
+    const entity = await this.repo.findByName(name, ctx);
+    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Person '${name}' not found`);
+    return entity!;
+  }
+
   async findBySlug(slug: string, ctx: IDBConfigOptions): Promise<IPersonEntity | null> {
     return this.repo.findBySlug(slug, ctx);
+  }
+
+  async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IPersonEntity> {
+    const entity = await this.repo.findBySlug(slug, ctx);
+    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Person '${slug}' not found`);
+    return entity!;
   }
 }

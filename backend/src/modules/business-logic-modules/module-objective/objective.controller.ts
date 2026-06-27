@@ -23,6 +23,7 @@ import { Roles, Role } from 'src/common/decorators/roles.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
+import { AppException } from 'src/utils/exception.provider';
 
 @ApiTags('objectives')
 @Controller('objectives')
@@ -116,11 +117,7 @@ export class ObjectiveController {
     @CurrentUser() user: IUserSession,
     @Param() params: FindObjectiveBySlugDTO,
   ): Promise<IBaseResponse> {
-    const obj = await this.objectiveService.findBySlug(params.slug, this.ctx.forUser(user.id));
-    if (!obj) {
-      const { AppException } = await import('src/utils/exception.provider');
-      AppException.throw('RESOURCE_NOT_FOUND', `Objective with slug ${params.slug} not found`);
-    }
+    const obj = await this.objectiveService.requireBySlug(params.slug, this.ctx.forUser(user.id));
     return buildOk(obj, 'Objective found');
   }
 
