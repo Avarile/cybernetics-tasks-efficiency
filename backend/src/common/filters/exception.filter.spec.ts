@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { GlobalExceptionFilter } from './exception.interceptor';
+import { GlobalExceptionFilter } from './exception.filter';
 import { BusinessException } from 'src/utils/exception.provider';
 
 function makeHost() {

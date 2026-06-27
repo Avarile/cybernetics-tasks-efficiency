@@ -5,7 +5,7 @@ import env from 'src/utils/env';
 import { AppException } from 'src/utils/exception.provider';
 import { PersonAccountRepository } from './account.repo';
 import { DbContextService } from 'src/infra/application-db/db-context';
-import { Role } from 'src/middleware/roles.decorator';
+import { Role } from 'src/common/decorators/roles.decorator';
 
 @Injectable()
 export class AuthenticationService {

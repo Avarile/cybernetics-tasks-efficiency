@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { Role } from 'src/middleware/roles.decorator';
+import { Role } from 'src/common/decorators/roles.decorator';
 
 export class RegisterDTO {
   @IsString()

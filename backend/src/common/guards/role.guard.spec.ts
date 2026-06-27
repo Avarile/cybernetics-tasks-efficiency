@@ -1,6 +1,6 @@
 import { Reflector } from '@nestjs/core';
-import { RoleControllerGuard } from './role-controller.guard';
-import { Role, ROLES_KEY } from './roles.decorator';
+import { RoleGuard } from './role.guard';
+import { Role, ROLES_KEY } from 'src/common/decorators/roles.decorator';
 
 jest.mock('src/utils/env', () => ({
   default: {
@@ -30,13 +30,13 @@ function makeContext(user?: { role: string }) {
   return { context, handler, classRef };
 }
 
-describe('RoleControllerGuard', () => {
+describe('RoleGuard', () => {
   let reflector: jest.Mocked<Reflector>;
-  let guard: RoleControllerGuard;
+  let guard: RoleGuard;
 
   beforeEach(() => {
     reflector = { getAllAndOverride: jest.fn() } as any;
-    guard = new RoleControllerGuard(reflector);
+    guard = new RoleGuard(reflector);
   });
 
   it('returns true when no roles are required (public route)', () => {
