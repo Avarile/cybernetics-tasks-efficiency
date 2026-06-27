@@ -1,0 +1,64 @@
+import { Injectable } from '@nestjs/common';
+import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
+import { AppException } from 'src/utils/exception.provider';
+import { ObjectiveRepository } from './objective.repo';
+import {
+  INewObjective,
+  IUpdateObjective,
+  IObjectiveEntity,
+  IQueryObjectiveParams,
+} from './objective.interface';
+import { IBaseQueryResult } from 'src/utils/shared/interface';
+
+@Injectable()
+export class ObjectiveService {
+  constructor(private readonly repo: ObjectiveRepository) {}
+
+  async create(item: INewObjective, ctx: IDBConfigOptions): Promise<IObjectiveEntity> {
+    return this.repo.create(item, ctx);
+  }
+
+  async requireById(id: number, ctx: IDBConfigOptions): Promise<IObjectiveEntity> {
+    const entity = await this.repo.findById(id, ctx);
+    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Objective ${id} not found`);
+    return entity!;
+  }
+
+  async update(id: number, payload: IUpdateObjective, ctx: IDBConfigOptions): Promise<IObjectiveEntity> {
+    await this.requireById(id, ctx);
+    return this.repo.update(id, payload, ctx);
+  }
+
+  async remove(id: number, ctx: IDBConfigOptions): Promise<void> {
+    await this.requireById(id, ctx);
+    await this.repo.delete(id, ctx);
+  }
+
+  async queryAll(ctx: IDBConfigOptions): Promise<IObjectiveEntity[]> {
+    return this.repo.queryAll(ctx);
+  }
+
+  async search(params: IQueryObjectiveParams, ctx: IDBConfigOptions): Promise<IBaseQueryResult> {
+    return this.repo.query(params, ctx);
+  }
+
+  async findById(id: number, ctx: IDBConfigOptions): Promise<IObjectiveEntity | null> {
+    return this.repo.findById(id, ctx);
+  }
+
+  async findBySlug(slug: string, ctx: IDBConfigOptions): Promise<IObjectiveEntity | null> {
+    return this.repo.findBySlug(slug, ctx);
+  }
+
+  async findByOwner(ownerPersonId: number, ctx: IDBConfigOptions): Promise<IObjectiveEntity[]> {
+    return this.repo.findByOwner(ownerPersonId, ctx);
+  }
+
+  async findByScope(
+    scope: 'org' | 'department' | 'team',
+    scopeRefId: number | null | undefined,
+    ctx: IDBConfigOptions,
+  ): Promise<IObjectiveEntity[]> {
+    return this.repo.findByScope(scope, scopeRefId, ctx);
+  }
+}

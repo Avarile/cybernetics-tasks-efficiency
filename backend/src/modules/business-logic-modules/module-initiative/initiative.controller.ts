@@ -3,327 +3,148 @@ import {
   Controller,
   Delete,
   Get,
-  HttpStatus,
   Logger,
   Param,
+  Patch,
   Post,
-  UseGuards,
-  Req,
 } from '@nestjs/common';
-import { AppException, BusinessException } from '../../../utils/exception.provider';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { InitiativeRepository } from './initiative.repo';
+import { InitiativeService } from './initiative.service';
 import {
   NewInitiativeDTO,
-  DeleteInitiativeDTO,
   UpdateInitiativeDTO,
   QueryInitiativeDTO,
   FindInitiativeByIdDTO,
   FindInitiativeBySlugDTO,
   LinkKeyResultDTO,
 } from './initiative.dto';
-import { AuthGuard } from 'src/middleware/auth.guard';
 import { IBaseQueryResult, IBaseResponse } from 'src/utils/shared/interface';
-import { Role, Roles } from 'src/middleware/roles.decorator';
-import { RoleControllerGuard } from 'src/middleware/role-controller.guard';
-import { IUserSession } from '../../module-auth/current-user-module/session.interface';
+import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
+import { Roles, Role } from 'src/common/decorators/roles.decorator';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
 
 @ApiTags('initiatives')
-@UseGuards(AuthGuard, RoleControllerGuard)
 @Controller('initiatives')
 export class InitiativeController {
   private readonly logger = new Logger(InitiativeController.name);
 
   constructor(
-    private readonly initiativeRepository: InitiativeRepository,
+    private readonly initiativeService: InitiativeService,
     private readonly ctx: DbContextService,
   ) {}
 
-  @Post('/create')
+  @Post()
   @Roles(Role.admin, Role.manager)
   @ApiOperation({ summary: 'Create a new initiative' })
   @ApiResponse({ status: 201, description: 'Initiative created successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid request' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
   async createInitiative(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Body() dto: NewInitiativeDTO,
   ): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const result = await this.initiativeRepository.create(dto, tenancyInfo);
-      return {
-        data: result,
-        status_code: HttpStatus.CREATED,
-        message: 'Initiative created successfully',
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error creating initiative: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to create initiative: ${error.message}`);
-    }
+    const result = await this.initiativeService.create(dto, this.ctx.forUser(user.id));
+    return buildCreated(result, 'Initiative created successfully');
   }
 
-  @Post('/delete')
+  @Delete(':id')
   @Roles(Role.admin, Role.manager)
-  @ApiOperation({ summary: 'Soft-delete an initiative by ID' })
-  @ApiResponse({ status: 200, description: 'Initiative deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Initiative not found' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiOperation({ summary: 'Soft-delete an initiative' })
   async deleteInitiative(
-    @Req() req: Request,
-    @Body() dto: DeleteInitiativeDTO,
+    @CurrentUser() user: IUserSession,
+    @Param() params: FindInitiativeByIdDTO,
   ): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const existing = await this.initiativeRepository.findById(dto.id, tenancyInfo);
-      if (!existing) {
-        AppException.throw('RESOURCE_NOT_FOUND', `Initiative with id ${dto.id} not found`);
-      }
-      await this.initiativeRepository.delete(dto.id, tenancyInfo);
-      return {
-        data: null,
-        status_code: HttpStatus.OK,
-        message: 'Initiative deleted successfully',
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error deleting initiative ${dto.id}: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to delete initiative: ${error.message}`);
-    }
+    await this.initiativeService.remove(params.id, this.ctx.forUser(user.id));
+    return buildOk(null, 'Initiative deleted successfully');
   }
 
-  @Post('/update')
+  @Patch(':id')
   @Roles(Role.admin, Role.manager)
-  @ApiOperation({ summary: 'Update an initiative by ID' })
-  @ApiResponse({ status: 200, description: 'Initiative updated successfully' })
-  @ApiResponse({ status: 404, description: 'Initiative not found' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiOperation({ summary: 'Update an initiative' })
   async updateInitiative(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
+    @Param() params: FindInitiativeByIdDTO,
     @Body() dto: UpdateInitiativeDTO,
   ): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const existing = await this.initiativeRepository.findById(dto.id, tenancyInfo);
-      if (!existing) {
-        AppException.throw('RESOURCE_NOT_FOUND', `Initiative with id ${dto.id} not found`);
-      }
-      const updated = await this.initiativeRepository.update(dto.id, dto, tenancyInfo);
-      return {
-        data: updated,
-        status_code: HttpStatus.OK,
-        message: 'Initiative updated successfully',
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error updating initiative ${dto.id}: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to update initiative: ${error.message}`);
-    }
+    const updated = await this.initiativeService.update(params.id, dto, this.ctx.forUser(user.id));
+    return buildOk(updated, 'Initiative updated successfully');
   }
 
-  @Post('all')
+  @Get()
   @Roles(Role.admin, Role.manager, Role.member, Role.executive)
-  @ApiOperation({ summary: 'Fetch all non-deleted initiatives (no pagination)' })
-  @ApiResponse({ status: 200, description: 'All initiatives returned' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getAllInitiatives(@Req() req: Request): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const data = await this.initiativeRepository.queryAll(tenancyInfo);
-      return {
-        data,
-        status_code: HttpStatus.OK,
-        message: `Fetched ${data.length} initiatives`,
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error fetching all initiatives: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to fetch all initiatives: ${error.message}`);
-    }
+  @ApiOperation({ summary: 'Fetch all non-deleted initiatives' })
+  async getAllInitiatives(@CurrentUser() user: IUserSession): Promise<IBaseResponse> {
+    const data = await this.initiativeService.queryAll(this.ctx.forUser(user.id));
+    return buildOk(data, `Fetched ${data.length} initiatives`);
   }
 
   @Post('search')
   @Roles(Role.admin, Role.manager, Role.member, Role.executive)
   @ApiOperation({ summary: 'Search initiatives with filters' })
-  @ApiResponse({ status: 200, description: 'Search results returned successfully' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
   async searchInitiatives(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Body() searchParams: QueryInitiativeDTO,
   ): Promise<IBaseQueryResult> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const result = await this.initiativeRepository.query(searchParams, tenancyInfo);
-      return { ...result };
-    } catch (error: any) {
-      this.logger.error(`Error searching initiatives: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to search initiatives: ${error.message}`);
-    }
+    return this.initiativeService.search(searchParams, this.ctx.forUser(user.id));
   }
 
-  @Get(':id')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
-  @ApiOperation({ summary: 'Get an initiative by ID' })
-  @ApiResponse({ status: 200, description: 'Initiative found' })
-  @ApiResponse({ status: 404, description: 'Initiative not found' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getInitiativeById(
-    @Req() req: Request,
-    @Param() params: FindInitiativeByIdDTO,
-  ): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const result = await this.initiativeRepository.findById(params.id, tenancyInfo);
-      if (!result) {
-        AppException.throw('RESOURCE_NOT_FOUND', `Initiative with id ${params.id} not found`);
-      }
-      return {
-        data: result,
-        status_code: HttpStatus.OK,
-        message: 'Initiative found',
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error fetching initiative ${params.id}: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to fetch initiative: ${error.message}`);
-    }
-  }
-
-  @Get('/slug/:slug')
+  @Get('slug/:slug')
   @Roles(Role.admin, Role.manager, Role.member, Role.executive)
   @ApiOperation({ summary: 'Get an initiative by slug' })
-  @ApiResponse({ status: 200, description: 'Initiative found' })
-  @ApiResponse({ status: 404, description: 'Initiative not found' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
   async getInitiativeBySlug(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param() params: FindInitiativeBySlugDTO,
   ): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const result = await this.initiativeRepository.findBySlug(params.slug, tenancyInfo);
-      if (!result) {
-        AppException.throw('RESOURCE_NOT_FOUND', `Initiative with slug ${params.slug} not found`);
-      }
-      return {
-        data: result,
-        status_code: HttpStatus.OK,
-        message: 'Initiative found',
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error fetching initiative by slug ${params.slug}: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to fetch initiative: ${error.message}`);
-    }
+    const result = await this.initiativeService.requireBySlug(params.slug, this.ctx.forUser(user.id));
+    return buildOk(result, 'Initiative found');
   }
 
   @Post(':slug/key-results')
   @Roles(Role.admin, Role.manager)
   @ApiOperation({ summary: 'Link a key result to an initiative' })
-  @ApiResponse({ status: 200, description: 'Key result linked successfully' })
-  @ApiResponse({ status: 404, description: 'Initiative not found' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
   async linkKeyResult(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LinkKeyResultDTO,
   ): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const ini = await this.initiativeRepository.findBySlug(slug, tenancyInfo);
-      if (!ini) {
-        AppException.throw('RESOURCE_NOT_FOUND', `Initiative with slug ${slug} not found`);
-      }
-      await this.initiativeRepository.linkKeyResult(ini!.id, dto.keyResultId, tenancyInfo);
-      return {
-        data: null,
-        status_code: HttpStatus.OK,
-        message: 'Key result linked successfully',
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error linking key result to initiative ${slug}: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to link key result: ${error.message}`);
-    }
+    const ini = await this.initiativeService.requireBySlug(slug, this.ctx.forUser(user.id));
+    await this.initiativeService.linkKeyResult(ini.id, dto.keyResultId, this.ctx.forUser(user.id));
+    return buildOk(null, 'Key result linked successfully');
   }
 
   @Delete(':slug/key-results/:keyResultId')
   @Roles(Role.admin, Role.manager)
   @ApiOperation({ summary: 'Unlink a key result from an initiative' })
-  @ApiResponse({ status: 200, description: 'Key result unlinked successfully' })
-  @ApiResponse({ status: 404, description: 'Initiative not found' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
   async unlinkKeyResult(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Param('keyResultId') keyResultId: string,
   ): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const ini = await this.initiativeRepository.findBySlug(slug, tenancyInfo);
-      if (!ini) {
-        AppException.throw('RESOURCE_NOT_FOUND', `Initiative with slug ${slug} not found`);
-      }
-      await this.initiativeRepository.unlinkKeyResult(ini!.id, Number(keyResultId), tenancyInfo);
-      return {
-        data: null,
-        status_code: HttpStatus.OK,
-        message: 'Key result unlinked successfully',
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error unlinking key result from initiative ${slug}: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to unlink key result: ${error.message}`);
-    }
+    const ini = await this.initiativeService.requireBySlug(slug, this.ctx.forUser(user.id));
+    await this.initiativeService.unlinkKeyResult(ini.id, Number(keyResultId), this.ctx.forUser(user.id));
+    return buildOk(null, 'Key result unlinked successfully');
   }
 
   @Get(':slug/key-results')
   @Roles(Role.admin, Role.manager, Role.member, Role.executive)
-  @ApiOperation({ summary: 'Get key result IDs linked to an initiative' })
-  @ApiResponse({ status: 200, description: 'Key result IDs returned' })
-  @ApiResponse({ status: 404, description: 'Initiative not found' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiOperation({ summary: 'Get key result IDs for an initiative' })
   async findKeyResultIds(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
   ): Promise<IBaseResponse> {
-    const tenancyInfo = this.ctx.forUser(((req as any)['user'] as IUserSession).id);
-    try {
-      const ini = await this.initiativeRepository.findBySlug(slug, tenancyInfo);
-      if (!ini) {
-        AppException.throw('RESOURCE_NOT_FOUND', `Initiative with slug ${slug} not found`);
-      }
-      const ids = await this.initiativeRepository.findKeyResultIds(ini!.id, tenancyInfo);
-      return {
-        data: ids,
-        status_code: HttpStatus.OK,
-        message: 'Key result IDs fetched successfully',
-        timestamp: new Date(),
-        error: null,
-      };
-    } catch (error: any) {
-      this.logger.error(`Error fetching key result IDs for initiative ${slug}: ${error.message}`);
-      if (error instanceof BusinessException) throw error;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', `Failed to fetch key result IDs: ${error.message}`);
-    }
+    const ini = await this.initiativeService.requireBySlug(slug, this.ctx.forUser(user.id));
+    const ids = await this.initiativeService.findKeyResultIds(ini.id, this.ctx.forUser(user.id));
+    return buildOk(ids, 'Key result IDs fetched successfully');
+  }
+
+  @Get(':id')
+  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @ApiOperation({ summary: 'Get an initiative by ID' })
+  async getInitiativeById(
+    @CurrentUser() user: IUserSession,
+    @Param() params: FindInitiativeByIdDTO,
+  ): Promise<IBaseResponse> {
+    const result = await this.initiativeService.requireById(params.id, this.ctx.forUser(user.id));
+    return buildOk(result, 'Initiative found');
   }
 }

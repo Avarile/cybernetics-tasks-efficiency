@@ -2,20 +2,17 @@ import {
   Body,
   Controller,
   Get,
-  HttpStatus,
   Logger,
   Param,
   Post,
-  Req,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { AuthGuard } from 'src/middleware/auth.guard';
-import { RoleControllerGuard } from 'src/middleware/role-controller.guard';
-import { Role, Roles } from 'src/middleware/roles.decorator';
+import { Role, Roles } from 'src/common/decorators/roles.decorator';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { DbContextService } from 'src/infra/application-db/db-context';
 import { IBaseResponse } from 'src/utils/shared/interface';
-import { AppException, BusinessException } from 'src/utils/exception.provider';
+import { buildOk } from 'src/utils/shared/response.factory';
+import { AppException } from 'src/utils/exception.provider';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { InitiativeRepository } from '../module-initiative/initiative.repo';
 import { KeyResultRepository } from '../module-key-result/key-result.repo';
@@ -30,7 +27,6 @@ import {
 } from './tracking.dto';
 
 @ApiTags('tracking')
-@UseGuards(AuthGuard, RoleControllerGuard)
 @Controller('tracking')
 export class TrackingController {
   private readonly logger = new Logger(TrackingController.name);
@@ -42,14 +38,6 @@ export class TrackingController {
     private readonly activityEventRepo: ActivityEventRepository,
     private readonly ctx: DbContextService,
   ) {}
-
-  private actor(req: Request): number {
-    return ((req as any)['user'] as IUserSession).id;
-  }
-
-  private buildResponse(data: unknown, message: string): IBaseResponse {
-    return { data, status_code: HttpStatus.OK, message, timestamp: new Date(), error: null };
-  }
 
   private async resolveInitiative(slug: string, ctx: ReturnType<DbContextService['forUser']>) {
     const ini = await this.initiativeRepo.findBySlug(slug, ctx);
@@ -75,147 +63,98 @@ export class TrackingController {
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Start an initiative' })
   async start(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.start(ini.id, actorId, tenancy, dto.payload);
-      return this.buildResponse(event, 'Initiative started');
-    } catch (e: any) {
-      this.logger.error(`start ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.start(ini.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Initiative started');
   }
 
   @Post('initiatives/:slug/pause')
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Pause an initiative' })
   async pause(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.pause(ini.id, actorId, tenancy, dto.payload);
-      return this.buildResponse(event, 'Initiative paused');
-    } catch (e: any) {
-      this.logger.error(`pause ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.pause(ini.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Initiative paused');
   }
 
   @Post('initiatives/:slug/resume')
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Resume an initiative' })
   async resume(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.resume(ini.id, actorId, tenancy, dto.payload);
-      return this.buildResponse(event, 'Initiative resumed');
-    } catch (e: any) {
-      this.logger.error(`resume ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.resume(ini.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Initiative resumed');
   }
 
   @Post('initiatives/:slug/block')
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Block an initiative' })
   async block(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.block(ini.id, actorId, tenancy, dto.payload);
-      return this.buildResponse(event, 'Initiative blocked');
-    } catch (e: any) {
-      this.logger.error(`block ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.block(ini.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Initiative blocked');
   }
 
   @Post('initiatives/:slug/unblock')
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Unblock an initiative' })
   async unblock(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.unblock(ini.id, actorId, tenancy, dto.payload);
-      return this.buildResponse(event, 'Initiative unblocked');
-    } catch (e: any) {
-      this.logger.error(`unblock ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.unblock(ini.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Initiative unblocked');
   }
 
   @Post('initiatives/:slug/complete')
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Complete an initiative' })
   async complete(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.complete(ini.id, actorId, tenancy, dto.payload);
-      return this.buildResponse(event, 'Initiative completed');
-    } catch (e: any) {
-      this.logger.error(`complete ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.complete(ini.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Initiative completed');
   }
 
   @Post('initiatives/:slug/cancel')
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Cancel an initiative' })
   async cancel(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.cancel(ini.id, actorId, tenancy, dto.payload);
-      return this.buildResponse(event, 'Initiative cancelled');
-    } catch (e: any) {
-      this.logger.error(`cancel ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.cancel(ini.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Initiative cancelled');
   }
 
   // -------------------------------------------------------------------------
@@ -226,69 +165,48 @@ export class TrackingController {
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Log time on an initiative' })
   async logTime(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: LogTimeDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.logTime(ini.id, actorId, dto.minutes, tenancy);
-      return this.buildResponse(event, 'Time logged');
-    } catch (e: any) {
-      this.logger.error(`logTime ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.logTime(ini.id, user.id, dto.minutes, tenancy);
+    return buildOk(event, 'Time logged');
   }
 
   @Post('initiatives/:slug/reason')
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Record a reason on an initiative' })
   async recordReason(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: RecordReasonDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.recordReason(
-        'initiative',
-        ini.id,
-        actorId,
-        { reason: dto.reason, reasonClass: dto.reasonClass },
-        tenancy,
-      );
-      return this.buildResponse(event, 'Reason recorded');
-    } catch (e: any) {
-      this.logger.error(`recordReason ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.recordReason(
+      'initiative',
+      ini.id,
+      user.id,
+      { reason: dto.reason, reasonClass: dto.reasonClass },
+      tenancy,
+    );
+    return buildOk(event, 'Reason recorded');
   }
 
   @Post('initiatives/:slug/outcome')
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Record outcome on an initiative' })
   async recordOutcome(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: RecordOutcomeDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const event = await this.trackingService.recordOutcome(ini.id, actorId, { result: dto.result }, tenancy);
-      return this.buildResponse(event, 'Outcome recorded');
-    } catch (e: any) {
-      this.logger.error(`recordOutcome ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const event = await this.trackingService.recordOutcome(ini.id, user.id, { result: dto.result }, tenancy);
+    return buildOk(event, 'Outcome recorded');
   }
 
   // -------------------------------------------------------------------------
@@ -299,20 +217,13 @@ export class TrackingController {
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Get activity timeline for an initiative' })
   async getTimeline(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const ini = await this.resolveInitiative(slug, tenancy);
-      const events = await this.activityEventRepo.listBySubject('initiative', ini.id, tenancy);
-      return this.buildResponse(events, 'Timeline retrieved');
-    } catch (e: any) {
-      this.logger.error(`getTimeline ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const ini = await this.resolveInitiative(slug, tenancy);
+    const events = await this.activityEventRepo.listBySubject('initiative', ini.id, tenancy);
+    return buildOk(events, 'Timeline retrieved');
   }
 
   // -------------------------------------------------------------------------
@@ -323,20 +234,13 @@ export class TrackingController {
   @Roles(Role.member, Role.manager, Role.admin, Role.executive)
   @ApiOperation({ summary: 'Measure a key result' })
   async measureKeyResult(
-    @Req() req: Request,
+    @CurrentUser() user: IUserSession,
     @Param('slug') slug: string,
     @Body() dto: MeasureKeyResultDTO,
   ): Promise<IBaseResponse> {
-    try {
-      const actorId = this.actor(req);
-      const tenancy = this.ctx.forUser(actorId);
-      const kr = await this.resolveKeyResult(slug, tenancy);
-      const event = await this.trackingService.measureKeyResult(kr.id, actorId, dto.value, tenancy);
-      return this.buildResponse(event, 'Key result measured');
-    } catch (e: any) {
-      this.logger.error(`measureKeyResult ${slug}: ${e.message}`);
-      if (e instanceof BusinessException) throw e;
-      AppException.throw('SYSTEM_INTERNAL_ERROR', e.message);
-    }
+    const tenancy = this.ctx.forUser(user.id);
+    const kr = await this.resolveKeyResult(slug, tenancy);
+    const event = await this.trackingService.measureKeyResult(kr.id, user.id, dto.value, tenancy);
+    return buildOk(event, 'Key result measured');
   }
 }
