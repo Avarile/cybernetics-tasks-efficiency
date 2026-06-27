@@ -16,7 +16,12 @@ const envSchema = z.object({
 
   // auth
   JWT_SECRET: z.string(),
-  JWT_EXPIRES_IN: z.string().default('1d'),
+  JWT_EXPIRES_IN: z.string().default('1d'), // legacy; retained so older mocks still parse
+  JWT_ACCESS_TTL: z.string().default('15m'),
+  JWT_REFRESH_TTL: z.string().default('7d'),
+  REFRESH_COOKIE_NAME: z.string().default('cyb_refresh'),
+  COOKIE_SECURE: z.string().transform((v) => v === 'true').default('false'),
+  COOKIE_DOMAIN: z.string().optional(),
   APP_SALT_ROUNDS: z.coerce.number().default(10),
   ADMIN_ACCOUNT: z.string(),
   ADMIN_ACCOUNT_PASSWORD: z.string(),
