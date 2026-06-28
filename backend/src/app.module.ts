@@ -8,8 +8,10 @@ import { MainModule } from './modules/main.module';
 import { ApplicationDbModule } from './infra/application-db/application-db.module';
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { AuthGuard } from './common/guards/auth.guard';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RoleGuard } from './common/guards/role.guard';
+import { PoliciesGuard } from './common/casl/policies.guard';
+import { CaslModule } from './common/casl/casl.module';
 
 @Module({
   imports: [
@@ -17,14 +19,16 @@ import { RoleGuard } from './common/guards/role.guard';
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 20 }]),
     ApplicationDbModule,
+    CaslModule,
     MainModule,
   ],
   controllers: [AppController],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
-    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RoleGuard },
+    { provide: APP_GUARD, useClass: PoliciesGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
