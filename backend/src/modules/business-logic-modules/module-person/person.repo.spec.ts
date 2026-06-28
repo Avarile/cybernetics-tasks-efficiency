@@ -85,6 +85,31 @@ describe('PersonRepository (real DB)', () => {
     expect(found?.role).toBe('manager');
   });
 
+  it('never returns passwordHash on create or any read path', async () => {
+    const ctx = getCtx();
+    const created = await repo.create(
+      { name: 'Iris Vault', email: 'iris@co.com', role: 'member', passwordHash: 'bcrypt$secret$hash' },
+      ctx,
+    );
+    // create result must not carry the credential material
+    expect((created as any).passwordHash).toBeUndefined();
+
+    const byId = await repo.findById(created.id, ctx);
+    expect((byId as any).passwordHash).toBeUndefined();
+
+    const byEmail = await repo.findByEmail('iris@co.com', ctx);
+    expect((byEmail as any).passwordHash).toBeUndefined();
+
+    const bySlug = await repo.findBySlug(created.slug, ctx);
+    expect((bySlug as any).passwordHash).toBeUndefined();
+
+    const queried = await repo.query({ email: 'iris@co.com' }, ctx);
+    expect((queried.data as any[])[0].passwordHash).toBeUndefined();
+
+    const updated = await repo.update(created.id, { name: 'Iris V.' }, ctx);
+    expect((updated as any).passwordHash).toBeUndefined();
+  });
+
   it('update with isDeleted=true does NOT soft-delete the row', async () => {
     const ctx = getCtx();
     const created = await repo.create(

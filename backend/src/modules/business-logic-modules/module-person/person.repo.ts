@@ -25,6 +25,12 @@ import { withPagination } from '../../../utils/shared/query';
 import { PgColumn } from 'drizzle-orm/pg-core';
 import { IDBConfigOptions } from '../../../infra/application-db/application-db.module';
 
+// password_hash is credential material and must never leave this repository
+// on any read or return path. Project it out once and reuse everywhere; the
+// auth flow reads the hash via the separate PersonAccountRepository.
+const { passwordHash: _passwordHash, ...safePersonColumns } =
+  getTableColumns(person);
+
 @Injectable()
 export class PersonRepository implements BaseRepo<IPersonEntity> {
   constructor(private readonly dbProvider: ApplicationDBProvider) {}
@@ -47,7 +53,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
           departmentId: item.departmentId ?? null,
           teamId: item.teamId ?? null,
         })
-        .returning();
+        .returning(safePersonColumns);
       return result as IPersonEntity;
     } catch (e) {
       AppException.throw(
@@ -120,7 +126,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(person.id, id))
-        .returning();
+        .returning(safePersonColumns);
 
       return updated as IPersonEntity;
     } catch (e) {
@@ -199,7 +205,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
         .filter(Boolean);
 
       const query = dbConnection
-        .select({ ...getTableColumns(person) })
+        .select(safePersonColumns)
         .from(person)
         .where(whereCondition)
         .orderBy(...sortConditions)
@@ -236,7 +242,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
 
     try {
       const [result] = await dbConnection
-        .select({ ...getTableColumns(person) })
+        .select(safePersonColumns)
         .from(person)
         .where(and(eq(person.email, email), eq(person.isDeleted, false)));
       return (result as IPersonEntity) || null;
@@ -259,7 +265,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
 
     try {
       const [result] = await dbConnection
-        .select({ ...getTableColumns(person) })
+        .select(safePersonColumns)
         .from(person)
         .where(and(eq(person.name, name), eq(person.isDeleted, false)));
       return (result as IPersonEntity) || null;
@@ -282,7 +288,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
 
     try {
       const [result] = await dbConnection
-        .select({ ...getTableColumns(person) })
+        .select(safePersonColumns)
         .from(person)
         .where(and(eq(person.id, Number(id)), eq(person.isDeleted, false)));
       return (result as IPersonEntity) || null;
@@ -325,7 +331,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
 
     try {
       const [result] = await dbConnection
-        .select({ ...getTableColumns(person) })
+        .select(safePersonColumns)
         .from(person)
         .where(and(eq(person.slug, slug), eq(person.isDeleted, false)));
       return (result as IPersonEntity) || null;
@@ -365,7 +371,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
 
     try {
       const results = await dbConnection
-        .select({ ...getTableColumns(person) })
+        .select(safePersonColumns)
         .from(person)
         .where(eq(person.isDeleted, false))
         .orderBy(desc(person.createdAt));
@@ -389,7 +395,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
 
     try {
       const baseQuery = dbConnection
-        .select({ ...getTableColumns(person) })
+        .select(safePersonColumns)
         .from(person)
         .$dynamic();
 
