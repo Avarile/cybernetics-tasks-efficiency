@@ -32,6 +32,8 @@ export function defineAbilityFor(user: IUserSession): AppAbility {
       }
       can('manage', 'KeyResult');
       can('manage', 'Initiative');
+      can('manage', 'Task');
+      can('manage', 'Label');
       can('manage', 'AlignmentLink');
       can('manage', 'Intervention', { decidedByPersonId: user.id });
       can('create', 'ActivityEvent', { actorPersonId: user.id });
@@ -49,6 +51,9 @@ export function defineAbilityFor(user: IUserSession): AppAbility {
         'Person',
       ]);
       can('manage', 'Initiative', { ownerPersonId: user.id });
+      can('manage', 'Task', { createdByPersonId: user.id });
+      can('read', 'Task');
+      can('read', 'Label');
       can('create', 'ActivityEvent', { actorPersonId: user.id });
       can('read', 'ActivityEvent', { actorPersonId: user.id });
       can('update', 'Person', { id: user.id });

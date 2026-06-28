@@ -75,4 +75,33 @@ describe('defineAbilityFor', () => {
     expect(a.can('create', 'Team')).toBe(false);
     expect(a.can('manage', 'Team')).toBe(false);
   });
+
+  it('admin can manage Task and Label', () => {
+    const a = defineAbilityFor(user({ role: 'admin' }));
+    expect(a.can('create', 'Task')).toBe(true);
+    expect(a.can('delete', 'Label')).toBe(true);
+  });
+
+  it('executive can read Task/Label but not write (read-only)', () => {
+    const a = defineAbilityFor(user({ role: 'executive' }));
+    expect(a.can('read', 'Task')).toBe(true);
+    expect(a.can('create', 'Task')).toBe(false);
+    expect(a.can('update', 'Label')).toBe(false);
+  });
+
+  it('manager can manage Task and Label', () => {
+    const a = defineAbilityFor(user({ id: 5, role: 'manager' }));
+    expect(a.can('create', 'Task')).toBe(true);
+    expect(a.can('delete', subject('Task', { createdByPersonId: 9 }))).toBe(true);
+    expect(a.can('manage', 'Label')).toBe(true);
+  });
+
+  it('member can manage only own Task and read all Task/Label', () => {
+    const a = defineAbilityFor(user({ id: 7, role: 'member' }));
+    expect(a.can('update', subject('Task', { createdByPersonId: 7 }))).toBe(true);
+    expect(a.can('update', subject('Task', { createdByPersonId: 8 }))).toBe(false);
+    expect(a.can('read', subject('Task', { createdByPersonId: 8 }))).toBe(true);
+    expect(a.can('read', 'Label')).toBe(true);
+    expect(a.can('create', 'Label')).toBe(false);
+  });
 });

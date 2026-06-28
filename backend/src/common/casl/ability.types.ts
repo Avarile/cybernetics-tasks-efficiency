@@ -13,6 +13,8 @@ export type AppSubjectName =
   | 'AlignmentLink'
   | 'Intervention'
   | 'ActivityEvent'
+  | 'Task'
+  | 'Label'
   | 'all';
 
 /**
