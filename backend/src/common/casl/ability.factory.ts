@@ -34,6 +34,7 @@ export function defineAbilityFor(user: IUserSession): AppAbility {
       can('manage', 'Initiative');
       can('manage', 'AlignmentLink');
       can('manage', 'Intervention', { decidedByPersonId: user.id });
+      can('create', 'ActivityEvent', { actorPersonId: user.id });
       break;
 
     case 'member':

@@ -51,4 +51,28 @@ describe('defineAbilityFor', () => {
     expect(a.can('update', subject('Objective', { scope: 'team', scopeRefId: 42 }))).toBe(false);
     expect(a.can('update', subject('Objective', { ownerPersonId: 5 }))).toBe(true);
   });
+
+  it('manager can create ActivityEvent for their own actorPersonId', () => {
+    const a = defineAbilityFor(user({ id: 5, role: 'manager' }));
+    expect(a.can('create', subject('ActivityEvent', { actorPersonId: 5 }))).toBe(true);
+    expect(a.can('create', subject('ActivityEvent', { actorPersonId: 9 }))).toBe(false);
+  });
+
+  it('executive cannot create ActivityEvent (read-only)', () => {
+    const a = defineAbilityFor(user({ role: 'executive' }));
+    expect(a.can('create', 'ActivityEvent')).toBe(false);
+    expect(a.can('read', 'ActivityEvent')).toBe(true);
+  });
+
+  it('manager cannot create or manage Department', () => {
+    const a = defineAbilityFor(user({ id: 5, role: 'manager' }));
+    expect(a.can('create', 'Department')).toBe(false);
+    expect(a.can('manage', 'Department')).toBe(false);
+  });
+
+  it('manager cannot create or manage Team', () => {
+    const a = defineAbilityFor(user({ id: 5, role: 'manager' }));
+    expect(a.can('create', 'Team')).toBe(false);
+    expect(a.can('manage', 'Team')).toBe(false);
+  });
 });
