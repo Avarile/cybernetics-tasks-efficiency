@@ -9,7 +9,6 @@ import { ApplicationDbModule } from './infra/application-db/application-db.modul
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { RoleGuard } from './common/guards/role.guard';
 import { PoliciesGuard } from './common/casl/policies.guard';
 import { CaslModule } from './common/casl/casl.module';
 
@@ -27,7 +26,6 @@ import { CaslModule } from './common/casl/casl.module';
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RoleGuard },
     { provide: APP_GUARD, useClass: PoliciesGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
