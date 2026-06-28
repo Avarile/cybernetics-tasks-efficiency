@@ -1,118 +1,92 @@
-import * as bcrypt from 'bcrypt';
-import * as jwt from 'jsonwebtoken';
-import { AuthenticationService } from './authentication.service';
-import { PersonAccountRepository } from './account.repo';
-import { DbContextService } from 'src/infra/application-db/db-context';
-import { AppException } from 'src/utils/exception.provider';
-
-// Mock env so JWT_SECRET is deterministic in tests
 jest.mock('src/utils/env', () => ({
   default: {
     JWT_SECRET: 'test-secret-key',
-    JWT_EXPIRES_IN: '1d',
+    JWT_ACCESS_TTL: '15m',
+    JWT_REFRESH_TTL: '7d',
+    REFRESH_COOKIE_NAME: 'cyb_refresh',
+    COOKIE_SECURE: false,
+    COOKIE_DOMAIN: undefined,
     APP_SALT_ROUNDS: 10,
-    ADMIN_ACCOUNT: 'admin@test.com',
-    ADMIN_ACCOUNT_PASSWORD: 'admin-pass',
-    COMPANY_SCHEMA: 'public',
-    DATABASE_MAIN_HOST: 'localhost',
-    DATABASE_MAIN_PORT: 5432,
-    DATABASE_MAIN_DATABASE: 'test',
-    DATABASE_MAIN_USERNAME: 'postgres',
-    DATABASE_MAIN_PASSWORD: 'postgres',
   },
 }));
 
-const SYS_CTX = { database_uri: 'postgresql://localhost/test', schema_id: 'public', user_id: 0 };
+import { AuthenticationService } from './authentication.service';
 
-function makeRepo(): jest.Mocked<PersonAccountRepository> {
-  return {
-    findByEmail: jest.fn(),
-    createPerson: jest.fn(),
-    findById: jest.fn(),
+const SYS = { database_uri: 'u', schema_id: 'public', user_id: 0 };
+
+function deps() {
+  const accounts = { findByEmail: jest.fn(), findById: jest.fn(), createPerson: jest.fn() } as any;
+  const sessions = { create: jest.fn(), findActiveByHash: jest.fn(), revoke: jest.fn() } as any;
+  const passwords = { compare: jest.fn(), hash: jest.fn() } as any;
+  const tokens = {
+    signAccessToken: jest.fn().mockReturnValue('access.jwt'),
+    generateRefreshToken: jest.fn().mockReturnValue({ raw: 'raw-refresh', hash: 'hash-refresh' }),
+    hashRefresh: jest.fn((r: string) => `hash-${r}`),
+    refreshExpiryIso: jest.fn().mockReturnValue(new Date(Date.now() + 1000).toISOString()),
+    refreshTtlMs: jest.fn().mockReturnValue(1000),
   } as any;
+  const ctx = { system: jest.fn().mockReturnValue(SYS), forUser: jest.fn() } as any;
+  return { accounts, sessions, passwords, tokens, ctx };
 }
 
-function makeCtx(): jest.Mocked<DbContextService> {
-  return { system: jest.fn().mockReturnValue(SYS_CTX), forUser: jest.fn() } as any;
-}
+const res = () => ({ cookie: jest.fn(), clearCookie: jest.fn() } as any);
+const req = (cookies: any = {}) => ({ headers: {}, ip: '127.0.0.1', cookies } as any);
 
 describe('AuthenticationService', () => {
-  let service: AuthenticationService;
-  let repo: jest.Mocked<PersonAccountRepository>;
-  let ctx: jest.Mocked<DbContextService>;
-
-  beforeEach(() => {
-    repo = makeRepo();
-    ctx = makeCtx();
-    service = new AuthenticationService(repo, ctx);
+  it('validateCredentials returns a session on correct password', async () => {
+    const d = deps();
+    d.accounts.findByEmail.mockResolvedValue({ id: 3, slug: 's', email: 'u@x.com', role: 'member', passwordHash: 'h' });
+    d.passwords.compare.mockResolvedValue(true);
+    const svc = new AuthenticationService(d.accounts, d.sessions, d.passwords, d.tokens, d.ctx);
+    await expect(svc.validateCredentials('u@x.com', 'pw')).resolves.toMatchObject({ id: 3, role: 'member' });
   });
 
-  describe('register', () => {
-    it('stores a bcrypt hash (not plaintext) and returns a JWT token string', async () => {
-      let capturedHash: string | undefined;
-
-      repo.findByEmail.mockResolvedValue(null);
-      repo.createPerson.mockImplementation(async (dto) => {
-        capturedHash = dto.passwordHash;
-        return {
-          id: 1,
-          slug: 'slug-abc',
-          email: dto.email,
-          role: dto.role ?? 'member',
-          passwordHash: dto.passwordHash,
-        } as any;
-      });
-
-      const result = await service.register({ name: 'Alice', email: 'alice@example.com', password: 'secret123' });
-
-      // Hash must not be the plaintext password
-      expect(capturedHash).toBeDefined();
-      expect(capturedHash).not.toBe('secret123');
-      // Stored hash must verify against the original password
-      expect(await bcrypt.compare('secret123', capturedHash!)).toBe(true);
-
-      // Must return a JWT token string
-      expect(typeof result.token).toBe('string');
-      const decoded = jwt.verify(result.token, 'test-secret-key') as any;
-      expect(decoded.email).toBe('alice@example.com');
-    });
-
-    it('throws RESOURCE_CONFLICT when email already exists', async () => {
-      repo.findByEmail.mockResolvedValue({ id: 2, email: 'taken@example.com' } as any);
-
-      await expect(
-        service.register({ name: 'Bob', email: 'taken@example.com', password: 'pass' }),
-      ).rejects.toMatchObject({ code: 'RESOURCE_CONFLICT' });
-    });
+  it('validateCredentials throws UNAUTHORIZED on wrong password', async () => {
+    const d = deps();
+    d.accounts.findByEmail.mockResolvedValue({ id: 3, passwordHash: 'h', role: 'member' });
+    d.passwords.compare.mockResolvedValue(false);
+    const svc = new AuthenticationService(d.accounts, d.sessions, d.passwords, d.tokens, d.ctx);
+    await expect(svc.validateCredentials('u@x.com', 'bad')).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
   });
 
-  describe('login', () => {
-    it('returns a JWT token when credentials are correct', async () => {
-      const passwordHash = await bcrypt.hash('correct-pass', 10);
-      repo.findByEmail.mockResolvedValue({ id: 3, slug: 'slug-xyz', email: 'user@example.com', role: 'member', passwordHash } as any);
+  it('login signs an access token and persists a refresh session + cookie', async () => {
+    const d = deps();
+    const svc = new AuthenticationService(d.accounts, d.sessions, d.passwords, d.tokens, d.ctx);
+    const r = res();
+    const out = await svc.login({ id: 1, slug: 's', email: 'u@x.com', role: 'member' } as any, req(), r);
+    expect(out.accessToken).toBe('access.jwt');
+    expect(d.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({ personId: 1, refreshTokenHash: 'hash-refresh' }),
+      SYS,
+    );
+    expect(r.cookie).toHaveBeenCalledWith('cyb_refresh', 'raw-refresh', expect.objectContaining({ httpOnly: true }));
+  });
 
-      const result = await service.login('user@example.com', 'correct-pass');
+  it('refresh rotates: revokes the old session and issues a new pair', async () => {
+    const d = deps();
+    d.sessions.findActiveByHash.mockResolvedValue({ id: 99, personId: 1 });
+    d.accounts.findById.mockResolvedValue({ id: 1, slug: 's', email: 'u@x.com', role: 'member', isActive: true, isDeleted: false });
+    const svc = new AuthenticationService(d.accounts, d.sessions, d.passwords, d.tokens, d.ctx);
+    const out = await svc.refresh(req({ cyb_refresh: 'raw-refresh' }), res());
+    expect(d.sessions.revoke).toHaveBeenCalledWith(99, SYS);
+    expect(d.sessions.create).toHaveBeenCalled();
+    expect(out.accessToken).toBe('access.jwt');
+  });
 
-      expect(typeof result.token).toBe('string');
-      const decoded = jwt.verify(result.token, 'test-secret-key') as any;
-      expect(decoded.email).toBe('user@example.com');
-    });
+  it('refresh throws UNAUTHORIZED when no active session matches', async () => {
+    const d = deps();
+    d.sessions.findActiveByHash.mockResolvedValue(null);
+    const svc = new AuthenticationService(d.accounts, d.sessions, d.passwords, d.tokens, d.ctx);
+    await expect(svc.refresh(req({ cyb_refresh: 'x' }), res())).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
 
-    it('throws UNAUTHORIZED when password is wrong', async () => {
-      const passwordHash = await bcrypt.hash('correct-pass', 10);
-      repo.findByEmail.mockResolvedValue({ id: 3, slug: 'slug-xyz', email: 'user@example.com', role: 'member', passwordHash } as any);
-
-      await expect(
-        service.login('user@example.com', 'wrong-pass'),
-      ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
-    });
-
-    it('throws UNAUTHORIZED when email not found', async () => {
-      repo.findByEmail.mockResolvedValue(null);
-
-      await expect(
-        service.login('nobody@example.com', 'any-pass'),
-      ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
-    });
+  it('logout revokes the matching session and clears the cookie', async () => {
+    const d = deps();
+    d.sessions.findActiveByHash.mockResolvedValue({ id: 99, personId: 1 });
+    const svc = new AuthenticationService(d.accounts, d.sessions, d.passwords, d.tokens, d.ctx);
+    const r = res();
+    await svc.logout(req({ cyb_refresh: 'raw-refresh' }), r);
+    expect(d.sessions.revoke).toHaveBeenCalledWith(99, SYS);
+    expect(r.clearCookie).toHaveBeenCalledWith('cyb_refresh', expect.objectContaining({ path: '/api/auth' }));
   });
 });
