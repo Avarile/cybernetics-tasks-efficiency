@@ -11,7 +11,7 @@ import { AlignmentService } from './alignment.service';
 import { LinkDTO, UnlinkDTO } from './alignment.dto';
 import { IBaseResponse } from 'src/utils/shared/interface';
 import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
-import { Roles, Role } from 'src/common/decorators/roles.decorator';
+import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
@@ -27,7 +27,7 @@ export class AlignmentController {
   ) {}
 
   @Get('okr/tree/:objectiveSlug')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'AlignmentLink'))
   @ApiOperation({ summary: 'Get the OKR tree rooted at the given objective slug' })
   @ApiResponse({ status: 200, description: 'OKR tree returned' })
   async getOkrTree(
@@ -39,7 +39,7 @@ export class AlignmentController {
   }
 
   @Post('alignment/link')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('create', 'AlignmentLink'))
   @ApiOperation({ summary: 'Create an alignment link between two entities' })
   @ApiResponse({ status: 201, description: 'Alignment link created' })
   async createLink(
@@ -60,7 +60,7 @@ export class AlignmentController {
   }
 
   @Post('alignment/unlink')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('delete', 'AlignmentLink'))
   @ApiOperation({ summary: 'Remove an alignment link by ID' })
   @ApiResponse({ status: 200, description: 'Alignment link removed' })
   async removeLink(

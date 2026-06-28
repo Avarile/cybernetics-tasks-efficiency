@@ -19,7 +19,10 @@ import {
 } from './objective.dto';
 import { IBaseQueryResult, IBaseResponse } from 'src/utils/shared/interface';
 import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
-import { Roles, Role } from 'src/common/decorators/roles.decorator';
+import { CheckPolicies } from 'src/common/casl/policy.types';
+import { CurrentAbility } from 'src/common/casl/current-ability.decorator';
+import { AppAbility } from 'src/common/casl/ability.types';
+import { subject } from '@casl/ability';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
@@ -36,7 +39,7 @@ export class ObjectiveController {
   ) {}
 
   @Post()
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('create', 'Objective'))
   @ApiOperation({ summary: 'Create a new objective' })
   @ApiResponse({ status: 201, description: 'Objective created successfully' })
   async createObjective(
@@ -48,30 +51,40 @@ export class ObjectiveController {
   }
 
   @Delete(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('delete', 'Objective'))
   @ApiOperation({ summary: 'Soft-delete an objective' })
   async deleteObjective(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param() params: FindObjectiveByIdDTO,
   ): Promise<IBaseResponse> {
+    const existing = await this.objectiveService.requireById(params.id, this.ctx.forUser(user.id));
+    if (ability.cannot('delete', subject('Objective', existing as unknown as Record<string, unknown>))) {
+      AppException.throw('FORBIDDEN', 'You cannot delete this objective');
+    }
     await this.objectiveService.remove(params.id, this.ctx.forUser(user.id));
     return buildOk(null, 'Objective deleted successfully');
   }
 
   @Patch(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('update', 'Objective'))
   @ApiOperation({ summary: 'Update an objective' })
   async updateObjective(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param() params: FindObjectiveByIdDTO,
     @Body() dto: UpdateObjectiveDTO,
   ): Promise<IBaseResponse> {
+    const existing = await this.objectiveService.requireById(params.id, this.ctx.forUser(user.id));
+    if (ability.cannot('update', subject('Objective', existing as unknown as Record<string, unknown>))) {
+      AppException.throw('FORBIDDEN', 'You cannot update this objective');
+    }
     const updated = await this.objectiveService.update(params.id, dto, this.ctx.forUser(user.id));
     return buildOk(updated, 'Objective updated successfully');
   }
 
   @Get()
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Objective'))
   @ApiOperation({ summary: 'Fetch all non-deleted objectives' })
   async getAllObjectives(@CurrentUser() user: IUserSession): Promise<IBaseResponse> {
     const data = await this.objectiveService.queryAll(this.ctx.forUser(user.id));
@@ -79,7 +92,7 @@ export class ObjectiveController {
   }
 
   @Post('search')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Objective'))
   @ApiOperation({ summary: 'Search objectives with filters' })
   async searchObjectives(
     @CurrentUser() user: IUserSession,
@@ -89,7 +102,7 @@ export class ObjectiveController {
   }
 
   @Get('owner/:ownerPersonId')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Objective'))
   @ApiOperation({ summary: 'Get objectives by owner' })
   async getObjectivesByOwner(
     @CurrentUser() user: IUserSession,
@@ -100,7 +113,7 @@ export class ObjectiveController {
   }
 
   @Post('scope')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Objective'))
   @ApiOperation({ summary: 'Get objectives by scope' })
   async getObjectivesByScope(
     @CurrentUser() user: IUserSession,
@@ -111,7 +124,7 @@ export class ObjectiveController {
   }
 
   @Get('slug/:slug')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Objective'))
   @ApiOperation({ summary: 'Get an objective by slug' })
   async getObjectiveBySlug(
     @CurrentUser() user: IUserSession,
@@ -122,7 +135,7 @@ export class ObjectiveController {
   }
 
   @Get(':id')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Objective'))
   @ApiOperation({ summary: 'Get an objective by ID' })
   async getObjectiveById(
     @CurrentUser() user: IUserSession,

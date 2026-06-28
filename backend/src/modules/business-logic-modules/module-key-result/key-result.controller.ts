@@ -20,7 +20,7 @@ import {
 } from './key-result.dto';
 import { IBaseQueryResult, IBaseResponse } from 'src/utils/shared/interface';
 import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
-import { Roles, Role } from 'src/common/decorators/roles.decorator';
+import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
@@ -36,7 +36,7 @@ export class KeyResultController {
   ) {}
 
   @Post()
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('create', 'KeyResult'))
   @ApiOperation({ summary: 'Create a new key result' })
   @ApiResponse({ status: 201, description: 'Key result created successfully' })
   async createKeyResult(
@@ -48,7 +48,7 @@ export class KeyResultController {
   }
 
   @Delete(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('delete', 'KeyResult'))
   @ApiOperation({ summary: 'Soft-delete a key result' })
   async deleteKeyResult(
     @CurrentUser() user: IUserSession,
@@ -59,7 +59,7 @@ export class KeyResultController {
   }
 
   @Patch(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('update', 'KeyResult'))
   @ApiOperation({ summary: 'Update a key result' })
   async updateKeyResult(
     @CurrentUser() user: IUserSession,
@@ -71,7 +71,7 @@ export class KeyResultController {
   }
 
   @Patch(':id/value')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('update', 'KeyResult'))
   @ApiOperation({ summary: 'Update the current value of a key result' })
   async updateCurrentValue(
     @CurrentUser() user: IUserSession,
@@ -83,7 +83,7 @@ export class KeyResultController {
   }
 
   @Get()
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'KeyResult'))
   @ApiOperation({ summary: 'Fetch all non-deleted key results' })
   async getAllKeyResults(@CurrentUser() user: IUserSession): Promise<IBaseResponse> {
     const data = await this.keyResultService.queryAll(this.ctx.forUser(user.id));
@@ -91,7 +91,7 @@ export class KeyResultController {
   }
 
   @Post('search')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'KeyResult'))
   @ApiOperation({ summary: 'Search key results with filters' })
   async searchKeyResults(
     @CurrentUser() user: IUserSession,
@@ -101,7 +101,7 @@ export class KeyResultController {
   }
 
   @Get('objective/:objectiveId')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'KeyResult'))
   @ApiOperation({ summary: 'Get key results by objective ID' })
   async getKeyResultsByObjective(
     @CurrentUser() user: IUserSession,
@@ -112,7 +112,7 @@ export class KeyResultController {
   }
 
   @Get('slug/:slug')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'KeyResult'))
   @ApiOperation({ summary: 'Get a key result by slug' })
   async getKeyResultBySlug(
     @CurrentUser() user: IUserSession,
@@ -123,7 +123,7 @@ export class KeyResultController {
   }
 
   @Get(':id')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'KeyResult'))
   @ApiOperation({ summary: 'Get a key result by ID' })
   async getKeyResultById(
     @CurrentUser() user: IUserSession,
