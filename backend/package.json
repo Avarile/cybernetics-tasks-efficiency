@@ -26,7 +26,6 @@
     "@nestjs/jwt": "^10",
     "@nestjs/passport": "^10",
     "@nestjs/platform-express": "^10.4.19",
-    "@nestjs/schedule": "^4.1.1",
     "@nestjs/swagger": "^7.3.1",
     "@nestjs/throttler": "^5.1.2",
     "@scalar/nestjs-api-reference": "^1.0.13",

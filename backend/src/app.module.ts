@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { MainModule } from './modules/main.module';
 import { ApplicationDbModule } from './infra/application-db/application-db.module';
+import { InfraCacheModule } from './infra/cache/cache.module';
+import { QueueModule } from './infra/queue/queue.module';
+import { HealthModule } from './infra/health/health.module';
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -15,9 +17,11 @@ import { CaslModule } from './common/casl/casl.module';
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
-    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 20 }]),
     ApplicationDbModule,
+    InfraCacheModule,
+    QueueModule,
+    HealthModule,
     CaslModule,
     MainModule,
   ],
