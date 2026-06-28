@@ -54,6 +54,7 @@ describe('TrackingService (unit)', () => {
       { updateCurrentValue: keyResultsUpdate } as any,
       { withTenantTransaction } as any,
       { apply: projectorApply } as any,
+      { apply: jest.fn() } as any,
     );
   });
 
@@ -210,5 +211,27 @@ describe('TrackingService (unit)', () => {
       expect(keyResultsUpdate).not.toHaveBeenCalled();
       expect(emit).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('task lifecycle', () => {
+  it('startTask appends a task-subject "started" event and projects task state', async () => {
+    // Arrange: withTenantTransaction invokes its callback with a fake tx executor;
+    // activityEvents.append returns an event echoing the input; both projectors are spies.
+    const appended: any[] = [];
+    const activityEvents = { append: jest.fn(async (input: any) => { const e = { id: 1, occurredAt: '2026-06-28T00:00:00Z', ...input }; appended.push(e); return e; }) };
+    const initiativeProjector = { apply: jest.fn() };
+    const taskProjector = { apply: jest.fn() };
+    const dbProvider = { withTenantTransaction: jest.fn(async (_ctx: any, work: any) => work({} as any)) };
+    const emitter = { emit: jest.fn() };
+    const service = new (require('./tracking.service').TrackingService)(
+      activityEvents, emitter, { add: jest.fn() }, { updateCurrentValue: jest.fn() }, dbProvider, initiativeProjector, taskProjector,
+    );
+
+    const event = await service.startTask(42, 7, { database_uri: 'x', schema_id: 'public', user_id: 7 } as any);
+
+    expect(activityEvents.append).toHaveBeenCalledWith(expect.objectContaining({ subjectType: 'task', subjectId: 42, type: 'started', actorPersonId: 7 }), expect.anything(), expect.anything());
+    expect(taskProjector.apply).toHaveBeenCalled();
+    expect(event.subjectType).toBe('task');
   });
 });

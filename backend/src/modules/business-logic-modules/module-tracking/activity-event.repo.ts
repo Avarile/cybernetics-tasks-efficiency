@@ -45,7 +45,7 @@ export class ActivityEventRepository {
   }
 
   async listBySubject(
-    subjectType: 'initiative' | 'key_result' | 'objective',
+    subjectType: 'initiative' | 'key_result' | 'objective' | 'task',
     subjectId: number,
     ctx: IDBConfigOptions,
   ): Promise<IActivityEventEntity[]> {

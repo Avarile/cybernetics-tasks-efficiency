@@ -6,6 +6,8 @@ import { ApplicationDbModule } from 'src/infra/application-db/application-db.mod
 import { TrackingModule } from './tracking.module';
 import { TrackingService } from './tracking.service';
 import { InitiativeStateRepository } from './projection/initiative-state.repo';
+import { TaskRepository } from '../module-task/task.repo';
+import { TaskStateRepository } from './projection/task-state.repo';
 
 describe('TrackingService → InitiativeStateProjector (real DB integration)', () => {
   const { getCtx } = useTestSchema();
@@ -55,5 +57,48 @@ describe('TrackingService → InitiativeStateProjector (real DB integration)', (
 
     const state = await stateRepo.findByInitiativeId(initiativeId, ctx);
     expect(state!.totalTimeLoggedMinutes).toBe(75);
+  });
+});
+
+describe('TrackingService → TaskStateProjector (real DB integration)', () => {
+  const { getCtx } = useTestSchema();
+  let trackingService: TrackingService;
+  let taskRepo: TaskRepository;
+  let taskStateRepo: TaskStateRepository;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        EventEmitterModule.forRoot(),
+        ApplicationDbModule,
+        TrackingModule,
+      ],
+    }).compile();
+
+    await moduleRef.init();
+
+    trackingService = moduleRef.get(TrackingService);
+    taskRepo = moduleRef.get(TaskRepository);
+    taskStateRepo = moduleRef.get(TaskStateRepository);
+  }, 30_000);
+
+  it('startTask appends event and projects task_state = in_progress', async () => {
+    const ctx = getCtx();
+    const created = await taskRepo.create(
+      { initiativeId: 1, title: 'Integration Task', priority: 'none', createdByPersonId: 1 },
+      ctx,
+    );
+    const event = await trackingService.startTask(created.id, 1, ctx);
+    expect(event.subjectType).toBe('task');
+
+    const state = await taskStateRepo.findByTaskId(created.id, ctx);
+    expect(state?.status).toBe('in_progress');
+    expect(state?.lastEventAt).toBe(event.occurredAt);
+
+    // The denormalized task.status cache must also be updated so the OKR
+    // roll-up (countByInitiative) and status-filtered queries return honest data.
+    const summary = await taskRepo.countByInitiative(created.initiativeId, ctx);
+    expect(summary.byStatus.in_progress).toBeGreaterThanOrEqual(1);
+    expect(summary.byStatus.not_started).toBe(0);
   });
 });

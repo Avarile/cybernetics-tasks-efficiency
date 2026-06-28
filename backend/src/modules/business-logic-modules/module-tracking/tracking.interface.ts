@@ -16,7 +16,7 @@ export type ActivityEventType =
 export interface IActivityEventInput {
   occurredAt?: string;
   actorPersonId: number;
-  subjectType: 'initiative' | 'key_result' | 'objective';
+  subjectType: 'initiative' | 'key_result' | 'objective' | 'task';
   subjectId: number;
   type: ActivityEventType;
   payload?: Record<string, unknown>;

@@ -16,6 +16,7 @@ import { AppException } from 'src/utils/exception.provider';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { InitiativeRepository } from '../module-initiative/initiative.repo';
 import { KeyResultRepository } from '../module-key-result/key-result.repo';
+import { TaskRepository } from '../module-task/task.repo';
 import { ActivityEventRepository } from './activity-event.repo';
 import { TrackingService } from './tracking.service';
 import {
@@ -37,6 +38,7 @@ export class TrackingController {
     private readonly keyResultRepo: KeyResultRepository,
     private readonly activityEventRepo: ActivityEventRepository,
     private readonly ctx: DbContextService,
+    private readonly taskRepo: TaskRepository,
   ) {}
 
   private async resolveInitiative(slug: string, ctx: ReturnType<DbContextService['forUser']>) {
@@ -49,6 +51,12 @@ export class TrackingController {
     const kr = await this.keyResultRepo.findBySlug(slug, ctx);
     if (!kr) AppException.notFound('KeyResult', slug);
     return kr!;
+  }
+
+  private async resolveTask(slug: string, ctx: ReturnType<DbContextService['forUser']>) {
+    const t = await this.taskRepo.findBySlug(slug, ctx);
+    if (!t) AppException.notFound('Task', slug);
+    return t!;
   }
 
   // -------------------------------------------------------------------------
@@ -238,5 +246,134 @@ export class TrackingController {
     const kr = await this.resolveKeyResult(slug, tenancy);
     const event = await this.trackingService.measureKeyResult(kr.id, user.id, dto.value, tenancy);
     return buildOk(event, 'Key result measured');
+  }
+
+  // -------------------------------------------------------------------------
+  // Task lifecycle
+  // -------------------------------------------------------------------------
+
+  @Post('tasks/:slug/start')
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Start a task' })
+  async startTask(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+    @Body() dto: LifecyclePayloadDTO,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const event = await this.trackingService.startTask(t.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Task started');
+  }
+
+  @Post('tasks/:slug/pause')
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Pause a task' })
+  async pauseTask(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+    @Body() dto: LifecyclePayloadDTO,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const event = await this.trackingService.pauseTask(t.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Task paused');
+  }
+
+  @Post('tasks/:slug/resume')
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Resume a task' })
+  async resumeTask(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+    @Body() dto: LifecyclePayloadDTO,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const event = await this.trackingService.resumeTask(t.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Task resumed');
+  }
+
+  @Post('tasks/:slug/block')
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Block a task' })
+  async blockTask(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+    @Body() dto: LifecyclePayloadDTO,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const event = await this.trackingService.blockTask(t.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Task blocked');
+  }
+
+  @Post('tasks/:slug/unblock')
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Unblock a task' })
+  async unblockTask(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+    @Body() dto: LifecyclePayloadDTO,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const event = await this.trackingService.unblockTask(t.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Task unblocked');
+  }
+
+  @Post('tasks/:slug/complete')
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Complete a task' })
+  async completeTask(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+    @Body() dto: LifecyclePayloadDTO,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const event = await this.trackingService.completeTask(t.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Task completed');
+  }
+
+  @Post('tasks/:slug/cancel')
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Cancel a task' })
+  async cancelTask(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+    @Body() dto: LifecyclePayloadDTO,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const event = await this.trackingService.cancelTask(t.id, user.id, tenancy, dto.payload);
+    return buildOk(event, 'Task cancelled');
+  }
+
+  @Post('tasks/:slug/time')
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Log time on a task' })
+  async logTaskTime(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+    @Body() dto: LogTimeDTO,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const event = await this.trackingService.logTaskTime(t.id, user.id, dto.minutes, tenancy);
+    return buildOk(event, 'Time logged');
+  }
+
+  @Get('tasks/:slug/timeline')
+  @CheckPolicies((a) => a.can('read', 'ActivityEvent'))
+  @ApiOperation({ summary: 'Get activity timeline for a task' })
+  async getTaskTimeline(
+    @CurrentUser() user: IUserSession,
+    @Param('slug') slug: string,
+  ): Promise<IBaseResponse> {
+    const tenancy = this.ctx.forUser(user.id);
+    const t = await this.resolveTask(slug, tenancy);
+    const events = await this.activityEventRepo.listBySubject('task', t.id, tenancy);
+    return buildOk(events, 'Timeline retrieved');
   }
 }

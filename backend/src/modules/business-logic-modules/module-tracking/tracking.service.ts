@@ -5,6 +5,7 @@ import ApplicationDBProvider, { DbExecutor } from 'src/infra/application-db/db-c
 import { ActivityEventRepository } from './activity-event.repo';
 import { KeyResultMeasurementRepository } from './projection/key-result-measurement.repo';
 import { InitiativeStateProjector } from './projection/initiative-state.projector';
+import { TaskStateProjector } from './projection/task-state.projector';
 import { KeyResultRepository } from '../module-key-result/key-result.repo';
 import {
   ACTIVITY_EVENT_EMITTED,
@@ -23,6 +24,7 @@ export class TrackingService {
     private readonly keyResults: KeyResultRepository,
     private readonly dbProvider: ApplicationDBProvider,
     private readonly projector: InitiativeStateProjector,
+    private readonly taskProjector: TaskStateProjector,
   ) {}
 
   /**
@@ -36,6 +38,7 @@ export class TrackingService {
   ): Promise<IActivityEventEntity> {
     const event = await this.activityEvents.append(input, ctx, tx);
     await this.projector.apply(event, ctx, tx);
+    await this.taskProjector.apply(event, ctx, tx);
     return event;
   }
 
@@ -53,6 +56,18 @@ export class TrackingService {
     );
     this.notify(event, ctx);
     return event;
+  }
+
+  /** Emit a lifecycle event for any subject type and project it. */
+  private async emitLifecycle(
+    subjectType: 'initiative' | 'task',
+    subjectId: number,
+    type: IActivityEventInput['type'],
+    actorId: number,
+    ctx: IDBConfigOptions,
+    payload?: Record<string, unknown>,
+  ): Promise<IActivityEventEntity> {
+    return this.emit({ subjectType, subjectId, type, actorPersonId: actorId, payload }, ctx);
   }
 
   async start(
@@ -197,6 +212,31 @@ export class TrackingService {
       },
       ctx,
     );
+  }
+
+  async startTask(taskId: number, actorId: number, ctx: IDBConfigOptions, payload?: Record<string, unknown>) {
+    return this.emitLifecycle('task', taskId, 'started', actorId, ctx, payload);
+  }
+  async pauseTask(taskId: number, actorId: number, ctx: IDBConfigOptions, payload?: Record<string, unknown>) {
+    return this.emitLifecycle('task', taskId, 'paused', actorId, ctx, payload);
+  }
+  async resumeTask(taskId: number, actorId: number, ctx: IDBConfigOptions, payload?: Record<string, unknown>) {
+    return this.emitLifecycle('task', taskId, 'resumed', actorId, ctx, payload);
+  }
+  async blockTask(taskId: number, actorId: number, ctx: IDBConfigOptions, payload?: Record<string, unknown>) {
+    return this.emitLifecycle('task', taskId, 'blocked', actorId, ctx, payload);
+  }
+  async unblockTask(taskId: number, actorId: number, ctx: IDBConfigOptions, payload?: Record<string, unknown>) {
+    return this.emitLifecycle('task', taskId, 'unblocked', actorId, ctx, payload);
+  }
+  async completeTask(taskId: number, actorId: number, ctx: IDBConfigOptions, payload?: Record<string, unknown>) {
+    return this.emitLifecycle('task', taskId, 'completed', actorId, ctx, payload);
+  }
+  async cancelTask(taskId: number, actorId: number, ctx: IDBConfigOptions, payload?: Record<string, unknown>) {
+    return this.emitLifecycle('task', taskId, 'cancelled', actorId, ctx, payload);
+  }
+  async logTaskTime(taskId: number, actorId: number, minutes: number, ctx: IDBConfigOptions) {
+    return this.emitLifecycle('task', taskId, 'time_logged', actorId, ctx, { minutes });
   }
 
   async recordReason(

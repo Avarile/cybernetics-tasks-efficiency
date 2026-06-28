@@ -9,6 +9,8 @@ import { InitiativeModule } from './business-logic-modules/module-initiative/ini
 import { AlignmentModule } from './business-logic-modules/module-alignment/alignment.module';
 import { TrackingModule } from './business-logic-modules/module-tracking/tracking.module';
 import { InterventionModule } from './business-logic-modules/module-intervention/intervention.module';
+import { LabelModule } from './business-logic-modules/module-label/label.module';
+import { TaskModule } from './business-logic-modules/module-task/task.module';
 import { AuthModule } from './module-auth/auth.module';
 
 @Module({
@@ -24,6 +26,8 @@ import { AuthModule } from './module-auth/auth.module';
     AlignmentModule,
     TrackingModule,
     InterventionModule,
+    LabelModule,
+    TaskModule,
   ],
 })
 export class MainModule {}
