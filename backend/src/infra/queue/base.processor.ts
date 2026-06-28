@@ -22,7 +22,7 @@ export abstract class BaseProcessor extends WorkerHost {
         msg: 'job:failed',
         ...ctx,
         durationMs: Date.now() - start,
-        error: (err as Error).message,
+        error: err instanceof Error ? err.message : String(err),
       });
       throw err;
     }
@@ -35,7 +35,7 @@ export abstract class BaseProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   onFailed(job: Job | undefined, err: Error) {
-    this.logger.error({ msg: 'worker:failed', jobId: job?.id, error: err.message });
+    this.logger.error({ msg: 'worker:failed', jobId: job?.id, error: err instanceof Error ? err.message : String(err) });
   }
 
   @OnWorkerEvent('stalled')
