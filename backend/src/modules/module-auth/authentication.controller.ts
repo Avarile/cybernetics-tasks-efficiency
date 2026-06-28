@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
@@ -20,6 +20,7 @@ export class AuthenticationController {
   @Public()
   @UseGuards(LocalAuthGuard)
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email + password' })
   @ApiBody({ type: LoginDTO })
   async login(
@@ -33,6 +34,7 @@ export class AuthenticationController {
 
   @Public()
   @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate the access token using the refresh cookie' })
   async refresh(
     @Req() req: Request,
@@ -43,6 +45,7 @@ export class AuthenticationController {
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Revoke the current session' })
   async logout(
     @Req() req: Request,
