@@ -1,0 +1,39 @@
+# Goal
+
+## General description
+
+I am designing a system to track and trace the tasks being executed by employees in a business entity --- most likely a private owned company. My initial design is to provide a centralized task management system, using a OKR system, so it might be looks like this in terms of nested tasking:
+
+### Example:
+
+[CEO]
+Goal: reach $100,000,000.00 income
+Key-Task: Organzie all departments to reach the income target.
+
+ - [Marketing]
+    Goal: exposure of our product on platform A, B and C should reach desire group of potential customer
+    Key-Task - 1: Platform A views: 10000, clicks: 6000
+    Key-Task - 2: Platform B views: 20000, clicks: 9000
+    Key-Task - 3: Platform C views: 5000, clicks: 1000
+    Key-Task - 4: Average conversion rate reach 5%
+
+ - [Sales]
+    Goal: Close 10% of the deals
+    Key-Task: Close client a
+    Key-Task: Close client b
+    Key-Task: Close client c
+    Key-Task: Close client d
+    Key-Task: Close client e
+
+ - [Delivery]
+    Goal: Delivery of each deal with in 2 weeks.
+    Key-Task: Delivery of client f 
+    Key-Task: Delivery of client g
+    Key-Task: Delivery of client h 
+
+## Trace and tracking:
+
+Just like any collaboration software(Asana, Monday, Wrike), the goal of this system is to track on a daily basis, on the workplanning, each task of every employees, how they get finished / paused / canceleled, how much time is taken, why is it fail / success / delayed, what is the immediate results.
+
+The reason to trace is because later AI can be introduced to find out where is caveat is, if any action can be optimized, what is the result of each action(for example, an new sales strategy, and it is result in 2 weeks).
+
