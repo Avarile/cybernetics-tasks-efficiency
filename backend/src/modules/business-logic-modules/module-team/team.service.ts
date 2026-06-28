@@ -20,7 +20,7 @@ export class TeamService {
 
   async requireById(id: number, ctx: IDBConfigOptions): Promise<ITeamEntity> {
     const entity = await this.repo.findById(id, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Team ${id} not found`);
+    if (!entity) AppException.notFound('Team', id);
     return entity!;
   }
 

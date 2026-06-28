@@ -93,12 +93,7 @@ export class OkrTreeService {
     if (visited.has(rootObjectiveId)) {
       // Cycle detected — return a leaf node (no children) to break the loop
       const obj = await this.objectiveRepo.findById(rootObjectiveId, ctx);
-      if (!obj) {
-        AppException.throw(
-          'RESOURCE_NOT_FOUND',
-          `Objective with id ${rootObjectiveId} not found`,
-        );
-      }
+      if (!obj) AppException.notFound('Objective', rootObjectiveId);
       return { objective: obj, keyResults: [], children: [] };
     }
 
@@ -110,12 +105,7 @@ export class OkrTreeService {
       this.alignmentRepo.findChildren('objective', rootObjectiveId, ctx),
     ]);
 
-    if (!objective) {
-      AppException.throw(
-        'RESOURCE_NOT_FOUND',
-        `Objective with id ${rootObjectiveId} not found`,
-      );
-    }
+    if (!objective) AppException.notFound('Objective', rootObjectiveId);
 
     const keyResults: KrProgress[] = krs.map((kr) => this.computeKrProgress(kr));
 

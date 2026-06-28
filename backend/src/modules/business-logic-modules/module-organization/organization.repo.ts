@@ -70,10 +70,7 @@ export class OrganizationRepository implements BaseRepo<IOrganizationEntity> {
     return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const existing = await this.findById(id, tenancyInfo);
       if (!existing) {
-        AppException.throw(
-          'RESOURCE_NOT_FOUND',
-          `Error occurred during updating organization, organization id: ${id} not found`,
-        );
+        AppException.notFound('Organization', id);
       }
 
       // Exclude immutable fields and soft-delete fields (use delete() for that)

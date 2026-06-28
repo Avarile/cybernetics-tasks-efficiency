@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { GlobalExceptionFilter } from './exception.filter';
 import { BusinessException } from 'src/utils/exception.provider';
 
@@ -79,7 +79,39 @@ describe('GlobalExceptionFilter', () => {
     expect(body.status_code).toBe(500);
     expect(body.error).toBe('SYSTEM_INTERNAL_ERROR');
     expect(body.message).toBe('Internal server error');
-    // The real error message must NOT be leaked to the client
     expect(body.message).not.toContain('DB connection refused');
+  });
+
+  it('logs metadata in the 5xx error line but never sends it to the client', () => {
+    const { host, status, json } = makeHost();
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const exc = new BusinessException('DATABASE_QUERY_FAILED', 'db error', 500, { cause: 'timeout' });
+
+    filter.catch(exc, host);
+
+    expect(status).toHaveBeenCalledWith(500);
+    const body = json.mock.calls[0][0];
+    // metadata must not appear in the response envelope
+    expect(JSON.stringify(body)).not.toContain('timeout');
+    // metadata must appear in the server-side log
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"cause":"timeout"'),
+      expect.anything(),
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('does not log 4xx BusinessException (routine, not an error)', () => {
+    const { host } = makeHost();
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const exc = new BusinessException('RESOURCE_NOT_FOUND', 'not found', 404);
+
+    filter.catch(exc, host);
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 });

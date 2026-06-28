@@ -41,17 +41,13 @@ export class TrackingController {
 
   private async resolveInitiative(slug: string, ctx: ReturnType<DbContextService['forUser']>) {
     const ini = await this.initiativeRepo.findBySlug(slug, ctx);
-    if (!ini) {
-      AppException.throw('RESOURCE_NOT_FOUND', `Initiative with slug '${slug}' not found`);
-    }
+    if (!ini) AppException.notFound('Initiative', slug);
     return ini!;
   }
 
   private async resolveKeyResult(slug: string, ctx: ReturnType<DbContextService['forUser']>) {
     const kr = await this.keyResultRepo.findBySlug(slug, ctx);
-    if (!kr) {
-      AppException.throw('RESOURCE_NOT_FOUND', `Key result with slug '${slug}' not found`);
-    }
+    if (!kr) AppException.notFound('KeyResult', slug);
     return kr!;
   }
 

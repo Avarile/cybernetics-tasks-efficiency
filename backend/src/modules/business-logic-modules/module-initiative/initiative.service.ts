@@ -22,13 +22,13 @@ export class InitiativeService {
 
   async requireById(id: number, ctx: IDBConfigOptions): Promise<IInitiativeEntity> {
     const entity = await this.repo.findById(id, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Initiative ${id} not found`);
+    if (!entity) AppException.notFound('Initiative', id);
     return entity!;
   }
 
   async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IInitiativeEntity> {
     const entity = await this.repo.findBySlug(slug, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Initiative '${slug}' not found`);
+    if (!entity) AppException.notFound('Initiative', slug);
     return entity!;
   }
 

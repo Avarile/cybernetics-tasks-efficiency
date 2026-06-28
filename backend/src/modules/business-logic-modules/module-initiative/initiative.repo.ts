@@ -78,10 +78,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
         .where(and(eq(initiative.id, id), eq(initiative.isDeleted, false)));
 
       if (!existing) {
-        AppException.throw(
-          'RESOURCE_NOT_FOUND',
-          `Initiative id ${id} not found`,
-        );
+        AppException.notFound('Initiative', id);
       }
 
       const {

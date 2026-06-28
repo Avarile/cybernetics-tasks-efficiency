@@ -1,7 +1,6 @@
-Current: implement the cache and bullmq
-1. according to docs/superpowers/specs/2026-06-28-redis-cache-bullmq-infra-design.md
-
+Current: design and implement the centralized error definition and handling => docs/superpowers/specs/2026-06-28-centralized-error-handling-design.md
 
 design the task tracking using plane as references
+
 1. schema
 2. logic

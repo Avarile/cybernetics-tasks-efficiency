@@ -80,7 +80,7 @@ export class ObjectiveRepository implements BaseRepo<IObjectiveEntity> {
         .where(and(eq(objective.id, id), eq(objective.isDeleted, false)));
 
       if (!existing) {
-        AppException.throw('RESOURCE_NOT_FOUND', `Objective id ${id} not found`);
+        AppException.notFound('Objective', id);
       }
 
       const {

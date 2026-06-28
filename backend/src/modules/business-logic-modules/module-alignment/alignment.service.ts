@@ -32,7 +32,7 @@ export class AlignmentService {
 
   async getTree(objectiveSlug: string, ctx: IDBConfigOptions) {
     const objective = await this.objectiveRepo.findBySlug(objectiveSlug, ctx);
-    if (!objective) AppException.throw('RESOURCE_NOT_FOUND', `Objective with slug '${objectiveSlug}' not found`);
+    if (!objective) AppException.notFound('Objective', objectiveSlug);
     return this.okrTreeService.buildTree(objective!.id, ctx);
   }
 }

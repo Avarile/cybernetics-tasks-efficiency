@@ -22,7 +22,7 @@ export class PersonService {
 
   async requireById(id: number, ctx: IDBConfigOptions): Promise<IPersonEntity> {
     const entity = await this.repo.findById(id, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Person ${id} not found`);
+    if (!entity) AppException.notFound('Person', id);
     return entity!;
   }
 
@@ -56,7 +56,7 @@ export class PersonService {
 
   async requireByName(name: string, ctx: IDBConfigOptions): Promise<IPersonEntity> {
     const entity = await this.repo.findByName(name, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Person '${name}' not found`);
+    if (!entity) AppException.notFound('Person', name);
     return entity!;
   }
 
@@ -66,7 +66,7 @@ export class PersonService {
 
   async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IPersonEntity> {
     const entity = await this.repo.findBySlug(slug, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Person '${slug}' not found`);
+    if (!entity) AppException.notFound('Person', slug);
     return entity!;
   }
 }

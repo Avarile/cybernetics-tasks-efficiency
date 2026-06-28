@@ -20,7 +20,7 @@ export class OrganizationService {
 
   async requireById(id: number, ctx: IDBConfigOptions): Promise<IOrganizationEntity> {
     const entity = await this.repo.findById(id, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Organization ${id} not found`);
+    if (!entity) AppException.notFound('Organization', id);
     return entity!;
   }
 
@@ -47,7 +47,7 @@ export class OrganizationService {
 
   async requireByName(name: string, ctx: IDBConfigOptions): Promise<IOrganizationEntity> {
     const entity = await this.repo.findByName(name, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Organization '${name}' not found`);
+    if (!entity) AppException.notFound('Organization', name);
     return entity!;
   }
 
@@ -57,7 +57,7 @@ export class OrganizationService {
 
   async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IOrganizationEntity> {
     const entity = await this.repo.findBySlug(slug, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Organization '${slug}' not found`);
+    if (!entity) AppException.notFound('Organization', slug);
     return entity!;
   }
 }

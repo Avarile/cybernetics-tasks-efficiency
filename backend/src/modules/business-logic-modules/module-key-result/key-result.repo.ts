@@ -76,10 +76,7 @@ export class KeyResultRepository implements BaseRepo<IKeyResultEntity> {
     return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const existing = await this.findById(id, tenancyInfo);
       if (!existing) {
-        AppException.throw(
-          'RESOURCE_NOT_FOUND',
-          `Error occurred during updating key result, key result id: ${id} not found`,
-        );
+        AppException.notFound('KeyResult', id);
       }
 
       const {

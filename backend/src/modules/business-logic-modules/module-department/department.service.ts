@@ -20,7 +20,7 @@ export class DepartmentService {
 
   async requireById(id: number, ctx: IDBConfigOptions): Promise<IDepartmentEntity> {
     const entity = await this.repo.findById(id, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Department ${id} not found`);
+    if (!entity) AppException.notFound('Department', id);
     return entity!;
   }
 

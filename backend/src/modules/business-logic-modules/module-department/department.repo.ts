@@ -73,10 +73,7 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
     return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const existing = await this.findById(id, tenancyInfo);
       if (!existing) {
-        AppException.throw(
-          'RESOURCE_NOT_FOUND',
-          `Error occurred during updating department, department id: ${id} not found`,
-        );
+        AppException.notFound('Department', id);
       }
 
       // Exclude immutable fields and soft-delete fields (use delete() for that)

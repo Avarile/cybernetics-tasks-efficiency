@@ -22,7 +22,7 @@ export class ObjectiveService {
 
   async requireById(id: number, ctx: IDBConfigOptions): Promise<IObjectiveEntity> {
     const entity = await this.repo.findById(id, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Objective ${id} not found`);
+    if (!entity) AppException.notFound('Objective', id);
     return entity!;
   }
 
@@ -61,7 +61,7 @@ export class ObjectiveService {
 
   async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IObjectiveEntity> {
     const entity = await this.repo.findBySlug(slug, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Objective '${slug}' not found`);
+    if (!entity) AppException.notFound('Objective', slug);
     return entity!;
   }
 

@@ -76,10 +76,7 @@ export class InterventionRepository implements BaseRepo<IInterventionEntity> {
     return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const existing = await this.findById(id, tenancyInfo);
       if (!existing) {
-        AppException.throw(
-          'RESOURCE_NOT_FOUND',
-          `Error occurred during updating intervention, intervention id: ${id} not found`,
-        );
+        AppException.notFound('Intervention', id);
       }
 
       const {

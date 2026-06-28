@@ -20,13 +20,13 @@ export class KeyResultService {
 
   async requireById(id: number, ctx: IDBConfigOptions): Promise<IKeyResultEntity> {
     const entity = await this.repo.findById(id, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `KeyResult ${id} not found`);
+    if (!entity) AppException.notFound('KeyResult', id);
     return entity!;
   }
 
   async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IKeyResultEntity> {
     const entity = await this.repo.findBySlug(slug, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `KeyResult '${slug}' not found`);
+    if (!entity) AppException.notFound('KeyResult', slug);
     return entity!;
   }
 

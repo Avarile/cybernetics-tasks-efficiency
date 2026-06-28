@@ -1,6 +1,6 @@
 import ApplicationDBProvider, { DbExecutor } from './db-connection';
 import { IDBConfigOptions } from './application-db.module';
-import { AppException, BusinessException } from 'src/utils/exception.provider';
+import { AppException } from 'src/utils/exception.provider';
 
 /**
  * Execute `fn` against a Drizzle executor.
@@ -30,11 +30,10 @@ export async function runQuery<T>(
   } catch (e) {
     // Domain errors raised inside `fn` (e.g. RESOURCE_NOT_FOUND) must keep
     // their status; only unexpected failures map to DATABASE_QUERY_FAILED.
-    if (e instanceof BusinessException) throw e;
-    AppException.throw(
-      'DATABASE_QUERY_FAILED',
-      e instanceof Error ? e.message : 'Database operation failed',
-    );
+    if (AppException.isBusinessException(e)) throw e;
+    AppException.throw('DATABASE_QUERY_FAILED', {
+      cause: e instanceof Error ? e.message : 'Database operation failed',
+    });
   } finally {
     client.release();
   }

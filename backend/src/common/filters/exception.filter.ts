@@ -24,16 +24,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof BusinessException) {
       status_code = exception.status;
       error = exception.code;
-      // 5xx codes (e.g. DATABASE_QUERY_FAILED) may carry internal detail such
-      // as DB constraint/column names. Log it server-side; return a generic
-      // message to the client. 4xx messages are user-facing and safe to expose.
       if (status_code >= HttpStatus.INTERNAL_SERVER_ERROR) {
+        // 5xx: log internal detail (including metadata) server-side; return a
+        // generic message to the client so internals are never leaked.
+        const meta = exception.metadata ? ` ${JSON.stringify(exception.metadata)}` : '';
         this.logger.error(
-          `${error} on ${req?.method ?? ''} ${req?.url ?? ''}: ${exception.message}`,
+          `${error} on ${req?.method ?? ''} ${req?.url ?? ''}: ${exception.message}${meta}`,
           exception.stack,
         );
         message = 'Internal server error';
       } else {
+        // 4xx: message is user-facing and safe to expose; not logged (routine).
         message = exception.message;
       }
     } else if (exception instanceof HttpException) {

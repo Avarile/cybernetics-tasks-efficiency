@@ -80,10 +80,7 @@ export class PersonRepository implements BaseRepo<IPersonEntity> {
     return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const existing = await this.findById(id, tenancyInfo);
       if (!existing) {
-        AppException.throw(
-          'RESOURCE_NOT_FOUND',
-          `Error occurred during updating person, person id: ${id} not found`,
-        );
+        AppException.notFound('Person', id);
       }
 
       // Exclude immutable fields and soft-delete fields (use delete() for that)

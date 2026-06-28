@@ -22,13 +22,13 @@ export class InterventionService {
 
   async requireById(id: number, ctx: IDBConfigOptions): Promise<IInterventionEntity> {
     const entity = await this.repo.findById(id, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Intervention ${id} not found`);
+    if (!entity) AppException.notFound('Intervention', id);
     return entity!;
   }
 
   async requireBySlug(slug: string, ctx: IDBConfigOptions): Promise<IInterventionEntity> {
     const entity = await this.repo.findBySlug(slug, ctx);
-    if (!entity) AppException.throw('RESOURCE_NOT_FOUND', `Intervention '${slug}' not found`);
+    if (!entity) AppException.notFound('Intervention', slug);
     return entity!;
   }
 
