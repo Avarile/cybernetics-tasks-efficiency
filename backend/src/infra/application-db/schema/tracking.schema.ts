@@ -30,6 +30,7 @@ export const subjectType = pgEnum('subject_type', [
   'initiative',
   'key_result',
   'objective',
+  'task',
 ]);
 
 export const activityEventType = pgEnum('activity_event_type', [

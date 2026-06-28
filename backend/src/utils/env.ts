@@ -32,6 +32,9 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
   REDIS_CACHE_DB: z.coerce.number().default(1),
   REDIS_BULLMQ_DB: z.coerce.number().default(0),
+
+  // task tracking
+  TASK_KEY_PREFIX: z.string().default('TASK'),
 });
 
 const env = envSchema.parse(process.env);
