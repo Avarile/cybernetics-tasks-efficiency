@@ -55,6 +55,36 @@ export class NewPersonDTO implements INewPerson {
   passwordHash?: string | null;
 }
 
+export class CreateUserDTO {
+  @ApiProperty({ description: 'Person full name', required: true })
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @ApiProperty({ description: 'Person email address', required: true })
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ description: 'Initial password (min 8 chars)', required: true })
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
+  @ApiProperty({ description: 'Person role', required: true, enum: PersonRole })
+  @IsEnum(PersonRole)
+  role!: 'admin' | 'manager' | 'member' | 'executive';
+
+  @ApiProperty({ description: 'Department ID', required: false })
+  @IsOptional()
+  @IsNumber()
+  departmentId?: number | null;
+
+  @ApiProperty({ description: 'Team ID', required: false })
+  @IsOptional()
+  @IsNumber()
+  teamId?: number | null;
+}
+
 export class DeletePersonDTO implements IGetByID {
   @ApiProperty({ description: 'Person ID', required: true })
   @IsNumber()

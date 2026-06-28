@@ -1,29 +1,17 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Logger,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Patch, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { subject } from '@casl/ability';
 import { PersonService } from './person.service';
-import {
-  NewPersonDTO,
-  UpdatePersonDTO,
-  QueryPersonDTO,
-  FindPersonByIdDTO,
-  FindPersonByNameDTO,
-  FindPersonBySlugDTO,
-} from './person.dto';
+import { CreateUserDTO, UpdatePersonDTO, QueryPersonDTO, FindPersonByIdDTO, FindPersonByNameDTO, FindPersonBySlugDTO } from './person.dto';
 import { IBaseQueryResult, IBaseResponse } from 'src/utils/shared/interface';
 import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
-import { Roles, Role } from 'src/common/decorators/roles.decorator';
+import { CheckPolicies } from 'src/common/casl/policy.types';
+import { CurrentAbility } from 'src/common/casl/current-ability.decorator';
+import { AppAbility } from 'src/common/casl/ability.types';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
+import { PasswordService } from 'src/modules/module-auth/password.service';
 import { AppException } from 'src/utils/exception.provider';
 
 @ApiTags('persons')
@@ -33,46 +21,51 @@ export class PersonController {
 
   constructor(
     private readonly personService: PersonService,
+    private readonly passwords: PasswordService,
     private readonly ctx: DbContextService,
   ) {}
 
   @Post()
-  @Roles(Role.admin, Role.manager)
-  @ApiOperation({ summary: 'Create a new person' })
+  @CheckPolicies((a) => a.can('create', 'Person'))
+  @ApiOperation({ summary: 'Create a new user (admin only)' })
   @ApiResponse({ status: 201, description: 'Person created successfully' })
-  async createPerson(
-    @CurrentUser() user: IUserSession,
-    @Body() dto: NewPersonDTO,
-  ): Promise<IBaseResponse> {
-    const result = await this.personService.create(dto, this.ctx.forUser(user.id));
-    return buildCreated(result, 'Person created successfully');
+  async createPerson(@CurrentUser() user: IUserSession, @Body() dto: CreateUserDTO): Promise<IBaseResponse> {
+    const passwordHash = await this.passwords.hash(dto.password);
+    const result = await this.personService.create(
+      { name: dto.name, email: dto.email, role: dto.role, departmentId: dto.departmentId ?? null, teamId: dto.teamId ?? null, passwordHash },
+      this.ctx.forUser(user.id),
+    );
+    const { passwordHash: _omit, ...safe } = result as unknown as Record<string, unknown>;
+    return buildCreated(safe, 'Person created successfully');
   }
 
   @Delete(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('delete', 'Person'))
   @ApiOperation({ summary: 'Soft-delete a person' })
-  async deletePerson(
-    @CurrentUser() user: IUserSession,
-    @Param() params: FindPersonByIdDTO,
-  ): Promise<IBaseResponse> {
+  async deletePerson(@CurrentUser() user: IUserSession, @Param() params: FindPersonByIdDTO): Promise<IBaseResponse> {
     await this.personService.remove(params.id, this.ctx.forUser(user.id));
     return buildOk(null, 'Person deleted successfully');
   }
 
   @Patch(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('update', 'Person'))
   @ApiOperation({ summary: 'Update a person' })
   async updatePerson(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param() params: FindPersonByIdDTO,
     @Body() dto: UpdatePersonDTO,
   ): Promise<IBaseResponse> {
+    const existing = await this.personService.requireById(params.id, this.ctx.forUser(user.id));
+    if (ability.cannot('update', subject('Person', existing as unknown as Record<string, unknown>))) {
+      AppException.throw('FORBIDDEN', 'You cannot update this person');
+    }
     const updated = await this.personService.update(params.id, dto, this.ctx.forUser(user.id));
     return buildOk(updated, 'Person updated successfully');
   }
 
   @Get()
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Person'))
   @ApiOperation({ summary: 'Fetch all non-deleted persons' })
   async getAllPersons(@CurrentUser() user: IUserSession): Promise<IBaseResponse> {
     const data = await this.personService.queryAll(this.ctx.forUser(user.id));
@@ -80,44 +73,32 @@ export class PersonController {
   }
 
   @Post('search')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Person'))
   @ApiOperation({ summary: 'Search persons with filters' })
-  async searchPersons(
-    @CurrentUser() user: IUserSession,
-    @Body() searchParams: QueryPersonDTO,
-  ): Promise<IBaseQueryResult> {
+  async searchPersons(@CurrentUser() user: IUserSession, @Body() searchParams: QueryPersonDTO): Promise<IBaseQueryResult> {
     return this.personService.search(searchParams, this.ctx.forUser(user.id));
   }
 
   @Get('name/:name')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Person'))
   @ApiOperation({ summary: 'Get a person by name' })
-  async getPersonByName(
-    @CurrentUser() user: IUserSession,
-    @Param() params: FindPersonByNameDTO,
-  ): Promise<IBaseResponse> {
+  async getPersonByName(@CurrentUser() user: IUserSession, @Param() params: FindPersonByNameDTO): Promise<IBaseResponse> {
     const result = await this.personService.requireByName(params.name, this.ctx.forUser(user.id));
     return buildOk(result, 'Person found');
   }
 
   @Get('slug/:slug')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Person'))
   @ApiOperation({ summary: 'Get a person by slug' })
-  async getPersonBySlug(
-    @CurrentUser() user: IUserSession,
-    @Param() params: FindPersonBySlugDTO,
-  ): Promise<IBaseResponse> {
+  async getPersonBySlug(@CurrentUser() user: IUserSession, @Param() params: FindPersonBySlugDTO): Promise<IBaseResponse> {
     const result = await this.personService.requireBySlug(params.slug, this.ctx.forUser(user.id));
     return buildOk(result, 'Person found');
   }
 
   @Get(':id')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Person'))
   @ApiOperation({ summary: 'Get a person by ID' })
-  async getPersonById(
-    @CurrentUser() user: IUserSession,
-    @Param() params: FindPersonByIdDTO,
-  ): Promise<IBaseResponse> {
+  async getPersonById(@CurrentUser() user: IUserSession, @Param() params: FindPersonByIdDTO): Promise<IBaseResponse> {
     const result = await this.personService.requireById(params.id, this.ctx.forUser(user.id));
     return buildOk(result, 'Person found');
   }
