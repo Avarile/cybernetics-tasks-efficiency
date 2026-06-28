@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import ApplicationDBProvider from 'src/infra/application-db/db-connection';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
@@ -8,8 +8,6 @@ import { IAuthSessionRecord, ICreateAuthSession } from './auth.interface';
 
 @Injectable()
 export class AuthSessionRepository {
-  private readonly logger = new Logger(AuthSessionRepository.name);
-
   constructor(private readonly db: ApplicationDBProvider) {}
 
   async create(input: ICreateAuthSession, ctx: IDBConfigOptions): Promise<IAuthSessionRecord> {
