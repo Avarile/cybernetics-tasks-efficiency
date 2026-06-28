@@ -35,6 +35,7 @@ export abstract class BaseProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   onFailed(job: Job | undefined, err: Error) {
+    // process() logs per-attempt; onFailed fires on final failure after all retries
     this.logger.error({ msg: 'worker:failed', jobId: job?.id, error: err instanceof Error ? err.message : String(err) });
   }
 

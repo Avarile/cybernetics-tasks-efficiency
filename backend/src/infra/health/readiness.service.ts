@@ -40,6 +40,7 @@ export class ReadinessService {
   }
 
   private async pingBullMq(): Promise<void> {
+    // IRedisClient does not declare ping(); cast to ioredis Redis — safe because BullMQ uses ioredis here
     const client = (await this.exampleQueue.client) as unknown as Redis;
     await client.ping();
   }

@@ -44,8 +44,9 @@ describe('ReadinessService', () => {
     mockCacheClientPing.mockResolvedValue('PONG');
     mockBullClientPing.mockResolvedValue('PONG');
 
-    await expect(service.check()).rejects.toBeInstanceOf(BusinessException);
-    await expect(service.check()).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+    const err = await service.check().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BusinessException);
+    expect(err).toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
   });
 
   it('throws SERVICE_UNAVAILABLE BusinessException when cache ping fails', async () => {
