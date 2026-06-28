@@ -18,7 +18,7 @@ import {
 } from './team.dto';
 import { IBaseQueryResult, IBaseResponse } from 'src/utils/shared/interface';
 import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
-import { Roles, Role } from 'src/common/decorators/roles.decorator';
+import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
@@ -34,7 +34,7 @@ export class TeamController {
   ) {}
 
   @Post()
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('create', 'Team'))
   @ApiOperation({ summary: 'Create a new team' })
   @ApiResponse({ status: 201, description: 'Team created successfully' })
   async createTeam(
@@ -46,7 +46,7 @@ export class TeamController {
   }
 
   @Delete(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('delete', 'Team'))
   @ApiOperation({ summary: 'Soft-delete a team' })
   async deleteTeam(
     @CurrentUser() user: IUserSession,
@@ -57,7 +57,7 @@ export class TeamController {
   }
 
   @Patch(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('update', 'Team'))
   @ApiOperation({ summary: 'Update a team' })
   async updateTeam(
     @CurrentUser() user: IUserSession,
@@ -69,7 +69,7 @@ export class TeamController {
   }
 
   @Get()
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Team'))
   @ApiOperation({ summary: 'Fetch all non-deleted teams' })
   async getAllTeams(@CurrentUser() user: IUserSession): Promise<IBaseResponse> {
     const data = await this.teamService.queryAll(this.ctx.forUser(user.id));
@@ -77,7 +77,7 @@ export class TeamController {
   }
 
   @Post('search')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Team'))
   @ApiOperation({ summary: 'Search teams with filters' })
   async searchTeams(
     @CurrentUser() user: IUserSession,
@@ -87,7 +87,7 @@ export class TeamController {
   }
 
   @Get(':id/members')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Team'))
   @ApiOperation({ summary: 'Get teams for a department' })
   async getTeamsByDepartment(
     @CurrentUser() user: IUserSession,
@@ -98,7 +98,7 @@ export class TeamController {
   }
 
   @Get(':id')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Team'))
   @ApiOperation({ summary: 'Get a team by ID' })
   async getTeamById(
     @CurrentUser() user: IUserSession,

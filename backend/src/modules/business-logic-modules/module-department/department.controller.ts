@@ -18,7 +18,7 @@ import {
 } from './department.dto';
 import { IBaseQueryResult, IBaseResponse } from 'src/utils/shared/interface';
 import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
-import { Roles, Role } from 'src/common/decorators/roles.decorator';
+import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
@@ -34,7 +34,7 @@ export class DepartmentController {
   ) {}
 
   @Post()
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('create', 'Department'))
   @ApiOperation({ summary: 'Create a new department' })
   @ApiResponse({ status: 201, description: 'Department created successfully' })
   async createDepartment(
@@ -46,7 +46,7 @@ export class DepartmentController {
   }
 
   @Delete(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('delete', 'Department'))
   @ApiOperation({ summary: 'Soft-delete a department' })
   async deleteDepartment(
     @CurrentUser() user: IUserSession,
@@ -57,7 +57,7 @@ export class DepartmentController {
   }
 
   @Patch(':id')
-  @Roles(Role.admin, Role.manager)
+  @CheckPolicies((a) => a.can('update', 'Department'))
   @ApiOperation({ summary: 'Update a department' })
   async updateDepartment(
     @CurrentUser() user: IUserSession,
@@ -69,7 +69,7 @@ export class DepartmentController {
   }
 
   @Get()
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Department'))
   @ApiOperation({ summary: 'Fetch all non-deleted departments' })
   async getAllDepartments(@CurrentUser() user: IUserSession): Promise<IBaseResponse> {
     const data = await this.departmentService.queryAll(this.ctx.forUser(user.id));
@@ -77,7 +77,7 @@ export class DepartmentController {
   }
 
   @Post('search')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Department'))
   @ApiOperation({ summary: 'Search departments with filters' })
   async searchDepartments(
     @CurrentUser() user: IUserSession,
@@ -87,7 +87,7 @@ export class DepartmentController {
   }
 
   @Get('roots')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Department'))
   @ApiOperation({ summary: 'Get root departments (no parent)' })
   async getRootDepartments(@CurrentUser() user: IUserSession): Promise<IBaseResponse> {
     const data = await this.departmentService.findRoots(this.ctx.forUser(user.id));
@@ -95,7 +95,7 @@ export class DepartmentController {
   }
 
   @Get(':id/children')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Department'))
   @ApiOperation({ summary: 'Get child departments by parent ID' })
   async getChildDepartments(
     @CurrentUser() user: IUserSession,
@@ -106,7 +106,7 @@ export class DepartmentController {
   }
 
   @Get(':id')
-  @Roles(Role.admin, Role.manager, Role.member, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'Department'))
   @ApiOperation({ summary: 'Get a department by ID' })
   async getDepartmentById(
     @CurrentUser() user: IUserSession,

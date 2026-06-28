@@ -7,7 +7,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { Role, Roles } from 'src/common/decorators/roles.decorator';
+import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { DbContextService } from 'src/infra/application-db/db-context';
 import { IBaseResponse } from 'src/utils/shared/interface';
@@ -60,7 +60,7 @@ export class TrackingController {
   // -------------------------------------------------------------------------
 
   @Post('initiatives/:slug/start')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Start an initiative' })
   async start(
     @CurrentUser() user: IUserSession,
@@ -74,7 +74,7 @@ export class TrackingController {
   }
 
   @Post('initiatives/:slug/pause')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Pause an initiative' })
   async pause(
     @CurrentUser() user: IUserSession,
@@ -88,7 +88,7 @@ export class TrackingController {
   }
 
   @Post('initiatives/:slug/resume')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Resume an initiative' })
   async resume(
     @CurrentUser() user: IUserSession,
@@ -102,7 +102,7 @@ export class TrackingController {
   }
 
   @Post('initiatives/:slug/block')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Block an initiative' })
   async block(
     @CurrentUser() user: IUserSession,
@@ -116,7 +116,7 @@ export class TrackingController {
   }
 
   @Post('initiatives/:slug/unblock')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Unblock an initiative' })
   async unblock(
     @CurrentUser() user: IUserSession,
@@ -130,7 +130,7 @@ export class TrackingController {
   }
 
   @Post('initiatives/:slug/complete')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Complete an initiative' })
   async complete(
     @CurrentUser() user: IUserSession,
@@ -144,7 +144,7 @@ export class TrackingController {
   }
 
   @Post('initiatives/:slug/cancel')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Cancel an initiative' })
   async cancel(
     @CurrentUser() user: IUserSession,
@@ -162,7 +162,7 @@ export class TrackingController {
   // -------------------------------------------------------------------------
 
   @Post('initiatives/:slug/time')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Log time on an initiative' })
   async logTime(
     @CurrentUser() user: IUserSession,
@@ -176,7 +176,7 @@ export class TrackingController {
   }
 
   @Post('initiatives/:slug/reason')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Record a reason on an initiative' })
   async recordReason(
     @CurrentUser() user: IUserSession,
@@ -196,7 +196,7 @@ export class TrackingController {
   }
 
   @Post('initiatives/:slug/outcome')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Record outcome on an initiative' })
   async recordOutcome(
     @CurrentUser() user: IUserSession,
@@ -214,7 +214,7 @@ export class TrackingController {
   // -------------------------------------------------------------------------
 
   @Get('initiatives/:slug/timeline')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('read', 'ActivityEvent'))
   @ApiOperation({ summary: 'Get activity timeline for an initiative' })
   async getTimeline(
     @CurrentUser() user: IUserSession,
@@ -231,7 +231,7 @@ export class TrackingController {
   // -------------------------------------------------------------------------
 
   @Post('key-results/:slug/measure')
-  @Roles(Role.member, Role.manager, Role.admin, Role.executive)
+  @CheckPolicies((a) => a.can('create', 'ActivityEvent'))
   @ApiOperation({ summary: 'Measure a key result' })
   async measureKeyResult(
     @CurrentUser() user: IUserSession,
