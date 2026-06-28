@@ -6,6 +6,10 @@ const makeCtx = () => ({
   user_id: 1,
 });
 
+// Minimal CASL ability stubs: assertAbility() consults `cannot`.
+const allow = { can: () => true, cannot: () => false } as any;
+const deny = { can: () => false, cannot: () => true } as any;
+
 describe('ObjectiveService', () => {
   let findById: jest.Mock;
   let create: jest.Mock;
@@ -50,15 +54,39 @@ describe('ObjectiveService', () => {
 
   it('remove() throws when not found', async () => {
     findById.mockResolvedValue(null);
-    await expect(svc.remove(99, makeCtx())).rejects.toMatchObject({
+    await expect(svc.remove(99, makeCtx(), allow)).rejects.toMatchObject({
       code: 'RESOURCE_NOT_FOUND',
     });
   });
 
-  it('remove() calls repo.delete when found', async () => {
+  it('remove() calls repo.delete when found and authorized', async () => {
     findById.mockResolvedValue({ id: 5 });
     deleteFn.mockResolvedValue(undefined);
-    await svc.remove(5, makeCtx());
+    await svc.remove(5, makeCtx(), allow);
     expect(deleteFn).toHaveBeenCalledWith(5, makeCtx());
+  });
+
+  it('remove() throws FORBIDDEN and does not delete when ability denies', async () => {
+    findById.mockResolvedValue({ id: 5, ownerPersonId: 999 });
+    await expect(svc.remove(5, makeCtx(), deny)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    expect(deleteFn).not.toHaveBeenCalled();
+  });
+
+  it('update() throws FORBIDDEN and does not update when ability denies', async () => {
+    findById.mockResolvedValue({ id: 5, ownerPersonId: 999 });
+    await expect(svc.update(5, { title: 'x' } as any, makeCtx(), deny)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('update() delegates to repo.update when authorized', async () => {
+    findById.mockResolvedValue({ id: 5 });
+    update.mockResolvedValue({ id: 5, title: 'x' });
+    const result = await svc.update(5, { title: 'x' } as any, makeCtx(), allow);
+    expect(update).toHaveBeenCalledWith(5, { title: 'x' }, makeCtx());
+    expect(result).toEqual({ id: 5, title: 'x' });
   });
 });

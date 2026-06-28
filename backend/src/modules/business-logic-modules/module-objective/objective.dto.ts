@@ -203,3 +203,15 @@ export class FindObjectiveBySlugDTO {
   @IsString()
   slug!: string;
 }
+
+export class ScopeQueryDTO {
+  @ApiProperty({ description: 'Scope to filter by', required: true, enum: ObjectiveScope })
+  @IsEnum(ObjectiveScope)
+  scope!: 'org' | 'department' | 'team';
+
+  @ApiProperty({ description: 'Scope reference ID (dept/team ID)', required: false })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  scopeRefId?: number;
+}

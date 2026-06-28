@@ -8,6 +8,7 @@ const CODE_STATUS: Record<string, number> = {
   UNAUTHORIZED: HttpStatus.UNAUTHORIZED,
   FORBIDDEN: HttpStatus.FORBIDDEN,
   SYSTEM_INTERNAL_ERROR: HttpStatus.INTERNAL_SERVER_ERROR,
+  SERVICE_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
 };
 
 export class BusinessException extends Error {

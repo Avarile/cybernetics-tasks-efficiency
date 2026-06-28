@@ -11,8 +11,9 @@ import {
   getTableColumns,
   isNull,
 } from 'drizzle-orm';
-import { AppException, BusinessException } from '../../../utils/exception.provider';
+import { AppException } from '../../../utils/exception.provider';
 import ApplicationDBProvider from 'src/infra/application-db/db-connection';
+import { runQuery } from 'src/infra/application-db/query-runner';
 import { department } from 'src/infra/application-db/schema/identity.schema';
 import {
   INewDepartment,
@@ -34,10 +35,7 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
     item: INewDepartment,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IDepartmentEntity> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .insert(department)
         .values({
@@ -48,24 +46,14 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
         })
         .returning();
       return result as IDepartmentEntity;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async delete(
     id: string | number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<void> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       await dbConnection
         .update(department)
         .set({
@@ -74,14 +62,7 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(department.id, Number(id)));
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async update(
@@ -89,10 +70,7 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
     payload: IUpdateDepartment,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IDepartmentEntity> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const existing = await this.findById(id, tenancyInfo);
       if (!existing) {
         AppException.throw(
@@ -122,17 +100,7 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
         .returning();
 
       return updated as IDepartmentEntity;
-    } catch (e) {
-      if (e instanceof BusinessException) {
-        throw e;
-      }
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async query(
@@ -172,10 +140,7 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
 
     const whereCondition = and(...conditions);
 
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const columnMap: Record<string, PgColumn> = {
         id: department.id as unknown as PgColumn,
         slug: department.slug as unknown as PgColumn,
@@ -199,7 +164,7 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
         .$dynamic();
 
       const results = await withPagination(query, page, pageSize);
-      const totalCount = await this.countAll(tenancyInfo);
+      const totalCount = await this.countAll(tenancyInfo, whereCondition);
       const totalPages = Math.ceil(totalCount / pageSize);
 
       return {
@@ -210,24 +175,14 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
         timestamp: new Date(),
         error: null,
       };
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findByParentId(
     parentId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IDepartmentEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const results = await dbConnection
         .select({ ...getTableColumns(department) })
         .from(department)
@@ -239,21 +194,11 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
         )
         .orderBy(desc(department.createdAt));
       return results as IDepartmentEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findRoots(tenancyInfo: IDBConfigOptions): Promise<IDepartmentEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const results = await dbConnection
         .select({ ...getTableColumns(department) })
         .from(department)
@@ -265,154 +210,84 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
         )
         .orderBy(desc(department.createdAt));
       return results as IDepartmentEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findByName(
     name: string,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IDepartmentEntity | null> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .select({ ...getTableColumns(department) })
         .from(department)
         .where(and(eq(department.name, name), eq(department.isDeleted, false)));
       return (result as IDepartmentEntity) || null;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findById(
     id: string | number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IDepartmentEntity | null> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .select({ ...getTableColumns(department) })
         .from(department)
         .where(and(eq(department.id, Number(id)), eq(department.isDeleted, false)));
       return (result as IDepartmentEntity) || null;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async existByID(id: number, tenancyInfo: IDBConfigOptions): Promise<boolean> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [{ c }] = await dbConnection
         .select({ c: count() })
         .from(department)
         .where(and(eq(department.id, id), eq(department.isDeleted, false)));
       return Number(c) > 0;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findBySlug(
     slug: string,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IDepartmentEntity | null> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .select({ ...getTableColumns(department) })
         .from(department)
         .where(and(eq(department.slug, slug), eq(department.isDeleted, false)));
       return (result as IDepartmentEntity) || null;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
-  async countAll(tenancyInfo: IDBConfigOptions): Promise<number> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+  async countAll(tenancyInfo: IDBConfigOptions, where?: SQL): Promise<number> {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .select({ count: count() })
         .from(department)
-        .where(eq(department.isDeleted, false));
+        .where(where ?? eq(department.isDeleted, false));
       return result.count;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async queryAll(tenancyInfo: IDBConfigOptions): Promise<IDepartmentEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const results = await dbConnection
         .select({ ...getTableColumns(department) })
         .from(department)
         .where(eq(department.isDeleted, false))
         .orderBy(desc(department.createdAt));
       return results as IDepartmentEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findAll(
     searchParams: IQueryDepartmentParams,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IDepartmentEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const baseQuery = dbConnection
         .select({ ...getTableColumns(department) })
         .from(department)
@@ -424,13 +299,6 @@ export class DepartmentRepository implements BaseRepo<IDepartmentEntity> {
         searchParams.pageSize,
       );
       return result as IDepartmentEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 }

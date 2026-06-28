@@ -23,11 +23,9 @@ import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
 import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentAbility } from 'src/common/casl/current-ability.decorator';
 import { AppAbility } from 'src/common/casl/ability.types';
-import { subject } from '@casl/ability';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
-import { AppException } from 'src/utils/exception.provider';
 
 @ApiTags('initiatives')
 @Controller('initiatives')
@@ -59,11 +57,7 @@ export class InitiativeController {
     @CurrentAbility() ability: AppAbility,
     @Param() params: FindInitiativeByIdDTO,
   ): Promise<IBaseResponse> {
-    const existing = await this.initiativeService.requireById(params.id, this.ctx.forUser(user.id));
-    if (ability.cannot('delete', subject('Initiative', existing as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot delete this initiative');
-    }
-    await this.initiativeService.remove(params.id, this.ctx.forUser(user.id));
+    await this.initiativeService.remove(params.id, this.ctx.forUser(user.id), ability);
     return buildOk(null, 'Initiative deleted successfully');
   }
 
@@ -76,11 +70,7 @@ export class InitiativeController {
     @Param() params: FindInitiativeByIdDTO,
     @Body() dto: UpdateInitiativeDTO,
   ): Promise<IBaseResponse> {
-    const existing = await this.initiativeService.requireById(params.id, this.ctx.forUser(user.id));
-    if (ability.cannot('update', subject('Initiative', existing as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot update this initiative');
-    }
-    const updated = await this.initiativeService.update(params.id, dto, this.ctx.forUser(user.id));
+    const updated = await this.initiativeService.update(params.id, dto, this.ctx.forUser(user.id), ability);
     return buildOk(updated, 'Initiative updated successfully');
   }
 
@@ -110,10 +100,7 @@ export class InitiativeController {
     @CurrentAbility() ability: AppAbility,
     @Param() params: FindInitiativeBySlugDTO,
   ): Promise<IBaseResponse> {
-    const result = await this.initiativeService.requireBySlug(params.slug, this.ctx.forUser(user.id));
-    if (ability.cannot('read', subject('Initiative', result as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot view this initiative');
-    }
+    const result = await this.initiativeService.requireBySlugAuthorized(params.slug, this.ctx.forUser(user.id), ability);
     return buildOk(result, 'Initiative found');
   }
 
@@ -163,10 +150,7 @@ export class InitiativeController {
     @CurrentAbility() ability: AppAbility,
     @Param() params: FindInitiativeByIdDTO,
   ): Promise<IBaseResponse> {
-    const result = await this.initiativeService.requireById(params.id, this.ctx.forUser(user.id));
-    if (ability.cannot('read', subject('Initiative', result as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot view this initiative');
-    }
+    const result = await this.initiativeService.requireByIdAuthorized(params.id, this.ctx.forUser(user.id), ability);
     return buildOk(result, 'Initiative found');
   }
 }

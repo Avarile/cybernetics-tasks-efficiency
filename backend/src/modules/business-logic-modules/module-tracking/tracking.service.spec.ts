@@ -25,29 +25,40 @@ const makeEvent = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+// Sentinel standing in for the transactional executor handed to repo calls.
+const TX = Symbol('tx');
+
 describe('TrackingService (unit)', () => {
   let append: jest.Mock;
-  let emitAsync: jest.Mock;
+  let emit: jest.Mock;
   let measurementsAdd: jest.Mock;
   let keyResultsUpdate: jest.Mock;
+  let projectorApply: jest.Mock;
+  let withTenantTransaction: jest.Mock;
   let svc: TrackingService;
 
   beforeEach(() => {
     append = jest.fn().mockResolvedValue(makeEvent());
-    emitAsync = jest.fn().mockResolvedValue(undefined);
+    emit = jest.fn();
     measurementsAdd = jest.fn().mockResolvedValue(undefined);
     keyResultsUpdate = jest.fn().mockResolvedValue(undefined);
+    projectorApply = jest.fn().mockResolvedValue(undefined);
+    // Run the work callback immediately with the sentinel tx, mirroring a
+    // committed transaction.
+    withTenantTransaction = jest.fn((_ctx, work) => work(TX));
 
     svc = new TrackingService(
       { append } as any,
-      { emitAsync } as any,
+      { emit } as any,
       { add: measurementsAdd } as any,
       { updateCurrentValue: keyResultsUpdate } as any,
+      { withTenantTransaction } as any,
+      { apply: projectorApply } as any,
     );
   });
 
   describe('start()', () => {
-    it('calls append with subjectType=initiative, type=started, actorPersonId', async () => {
+    it('appends the event on the transaction connection', async () => {
       await svc.start(5, 1, makeCtx());
       expect(append).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -57,17 +68,31 @@ describe('TrackingService (unit)', () => {
           actorPersonId: 1,
         }),
         expect.anything(),
+        TX,
       );
     });
 
-    it('awaits emitAsync with ACTIVITY_EVENT_EMITTED and the returned event', async () => {
+    it('projects the event inside the same transaction', async () => {
       const event = makeEvent({ type: 'started' });
       append.mockResolvedValue(event);
       await svc.start(5, 1, makeCtx());
-      expect(emitAsync).toHaveBeenCalledWith(
+      expect(projectorApply).toHaveBeenCalledWith(event, expect.anything(), TX);
+    });
+
+    it('notifies decoupled listeners after the transaction commits', async () => {
+      const event = makeEvent({ type: 'started' });
+      append.mockResolvedValue(event);
+      await svc.start(5, 1, makeCtx());
+      expect(emit).toHaveBeenCalledWith(
         ACTIVITY_EVENT_EMITTED,
         expect.objectContaining({ event }),
       );
+    });
+
+    it('does not notify when the transaction throws', async () => {
+      append.mockRejectedValue(new Error('boom'));
+      await expect(svc.start(5, 1, makeCtx())).rejects.toThrow('boom');
+      expect(emit).not.toHaveBeenCalled();
     });
   });
 
@@ -84,8 +109,9 @@ describe('TrackingService (unit)', () => {
       expect(append).toHaveBeenCalledWith(
         expect.objectContaining({ type }),
         expect.anything(),
+        TX,
       );
-      expect(emitAsync).toHaveBeenCalledWith(
+      expect(emit).toHaveBeenCalledWith(
         ACTIVITY_EVENT_EMITTED,
         expect.anything(),
       );
@@ -98,6 +124,7 @@ describe('TrackingService (unit)', () => {
       expect(append).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'time_logged', payload: { minutes: 90 } }),
         expect.anything(),
+        TX,
       );
     });
   });
@@ -111,6 +138,7 @@ describe('TrackingService (unit)', () => {
           payload: { reason: 'blocker', reasonClass: 'external' },
         }),
         expect.anything(),
+        TX,
       );
     });
   });
@@ -124,6 +152,7 @@ describe('TrackingService (unit)', () => {
           payload: { result: 'success' },
         }),
         expect.anything(),
+        TX,
       );
     });
   });
@@ -142,28 +171,44 @@ describe('TrackingService (unit)', () => {
           actorPersonId: 1,
         }),
         expect.anything(),
+        TX,
       );
     });
 
-    it('calls measurements.add with keyResultId, value, occurredAt, event.id', async () => {
+    it('adds the measurement on the transaction connection', async () => {
       const event = makeEvent({ id: 42, type: 'key_result_measured', occurredAt: '2026-06-27T12:00:00Z' });
       append.mockResolvedValue(event);
       await svc.measureKeyResult(7, 1, '42', makeCtx());
-      expect(measurementsAdd).toHaveBeenCalledWith(7, '42', event.occurredAt, event.id, expect.anything());
+      expect(measurementsAdd).toHaveBeenCalledWith(
+        7,
+        '42',
+        event.occurredAt,
+        event.id,
+        expect.anything(),
+        TX,
+      );
     });
 
-    it('calls keyResults.updateCurrentValue with the new value', async () => {
+    it('updates the key result current value on the transaction connection', async () => {
       const event = makeEvent({ id: 42, type: 'key_result_measured', occurredAt: '2026-06-27T12:00:00Z' });
       append.mockResolvedValue(event);
       await svc.measureKeyResult(7, 1, '42', makeCtx());
-      expect(keyResultsUpdate).toHaveBeenCalledWith(7, '42', expect.anything());
+      expect(keyResultsUpdate).toHaveBeenCalledWith(7, '42', expect.anything(), TX);
     });
 
-    it('emits ACTIVITY_EVENT_EMITTED for key_result_measured', async () => {
+    it('notifies listeners after the transaction commits', async () => {
       const event = makeEvent({ id: 42, type: 'key_result_measured' });
       append.mockResolvedValue(event);
       await svc.measureKeyResult(7, 1, '42', makeCtx());
-      expect(emitAsync).toHaveBeenCalledWith(ACTIVITY_EVENT_EMITTED, expect.objectContaining({ event }));
+      expect(emit).toHaveBeenCalledWith(ACTIVITY_EVENT_EMITTED, expect.objectContaining({ event }));
+    });
+
+    it('does not write measurement or update when append fails', async () => {
+      append.mockRejectedValue(new Error('append failed'));
+      await expect(svc.measureKeyResult(7, 1, '42', makeCtx())).rejects.toThrow('append failed');
+      expect(measurementsAdd).not.toHaveBeenCalled();
+      expect(keyResultsUpdate).not.toHaveBeenCalled();
+      expect(emit).not.toHaveBeenCalled();
     });
   });
 });

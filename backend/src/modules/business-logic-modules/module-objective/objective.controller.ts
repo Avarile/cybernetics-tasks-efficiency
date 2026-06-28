@@ -16,17 +16,16 @@ import {
   QueryObjectiveDTO,
   FindObjectiveByIdDTO,
   FindObjectiveBySlugDTO,
+  ScopeQueryDTO,
 } from './objective.dto';
 import { IBaseQueryResult, IBaseResponse } from 'src/utils/shared/interface';
 import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
 import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentAbility } from 'src/common/casl/current-ability.decorator';
 import { AppAbility } from 'src/common/casl/ability.types';
-import { subject } from '@casl/ability';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
-import { AppException } from 'src/utils/exception.provider';
 
 @ApiTags('objectives')
 @Controller('objectives')
@@ -58,11 +57,7 @@ export class ObjectiveController {
     @CurrentAbility() ability: AppAbility,
     @Param() params: FindObjectiveByIdDTO,
   ): Promise<IBaseResponse> {
-    const existing = await this.objectiveService.requireById(params.id, this.ctx.forUser(user.id));
-    if (ability.cannot('delete', subject('Objective', existing as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot delete this objective');
-    }
-    await this.objectiveService.remove(params.id, this.ctx.forUser(user.id));
+    await this.objectiveService.remove(params.id, this.ctx.forUser(user.id), ability);
     return buildOk(null, 'Objective deleted successfully');
   }
 
@@ -75,11 +70,7 @@ export class ObjectiveController {
     @Param() params: FindObjectiveByIdDTO,
     @Body() dto: UpdateObjectiveDTO,
   ): Promise<IBaseResponse> {
-    const existing = await this.objectiveService.requireById(params.id, this.ctx.forUser(user.id));
-    if (ability.cannot('update', subject('Objective', existing as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot update this objective');
-    }
-    const updated = await this.objectiveService.update(params.id, dto, this.ctx.forUser(user.id));
+    const updated = await this.objectiveService.update(params.id, dto, this.ctx.forUser(user.id), ability);
     return buildOk(updated, 'Objective updated successfully');
   }
 
@@ -117,7 +108,7 @@ export class ObjectiveController {
   @ApiOperation({ summary: 'Get objectives by scope' })
   async getObjectivesByScope(
     @CurrentUser() user: IUserSession,
-    @Body() body: { scope: 'org' | 'department' | 'team'; scopeRefId?: number },
+    @Body() body: ScopeQueryDTO,
   ): Promise<IBaseResponse> {
     const data = await this.objectiveService.findByScope(body.scope, body.scopeRefId, this.ctx.forUser(user.id));
     return buildOk(data, `Fetched ${data.length} objectives for scope`);

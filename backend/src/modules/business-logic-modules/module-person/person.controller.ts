@@ -1,6 +1,5 @@
 import { Body, Controller, Delete, Get, Logger, Param, Patch, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { subject } from '@casl/ability';
 import { PersonService } from './person.service';
 import { CreateUserDTO, UpdatePersonDTO, QueryPersonDTO, FindPersonByIdDTO, FindPersonByNameDTO, FindPersonBySlugDTO } from './person.dto';
 import { IBaseQueryResult, IBaseResponse } from 'src/utils/shared/interface';
@@ -12,7 +11,6 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
 import { PasswordService } from 'src/modules/module-auth/password.service';
-import { AppException } from 'src/utils/exception.provider';
 
 @ApiTags('persons')
 @Controller('persons')
@@ -56,11 +54,7 @@ export class PersonController {
     @Param() params: FindPersonByIdDTO,
     @Body() dto: UpdatePersonDTO,
   ): Promise<IBaseResponse> {
-    const existing = await this.personService.requireById(params.id, this.ctx.forUser(user.id));
-    if (ability.cannot('update', subject('Person', existing as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot update this person');
-    }
-    const updated = await this.personService.update(params.id, dto, this.ctx.forUser(user.id));
+    const updated = await this.personService.update(params.id, dto, this.ctx.forUser(user.id), ability);
     return buildOk(updated, 'Person updated successfully');
   }
 

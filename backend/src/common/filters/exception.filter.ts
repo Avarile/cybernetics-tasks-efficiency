@@ -24,7 +24,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof BusinessException) {
       status_code = exception.status;
       error = exception.code;
-      message = exception.message;
+      // 5xx codes (e.g. DATABASE_QUERY_FAILED) may carry internal detail such
+      // as DB constraint/column names. Log it server-side; return a generic
+      // message to the client. 4xx messages are user-facing and safe to expose.
+      if (status_code >= HttpStatus.INTERNAL_SERVER_ERROR) {
+        this.logger.error(
+          `${error} on ${req?.method ?? ''} ${req?.url ?? ''}: ${exception.message}`,
+          exception.stack,
+        );
+        message = 'Internal server error';
+      } else {
+        message = exception.message;
+      }
     } else if (exception instanceof HttpException) {
       status_code = exception.getStatus();
       const resp = exception.getResponse();

@@ -10,8 +10,9 @@ import {
   SQL,
   getTableColumns,
 } from 'drizzle-orm';
-import { AppException, BusinessException } from '../../../utils/exception.provider';
+import { AppException } from '../../../utils/exception.provider';
 import ApplicationDBProvider from 'src/infra/application-db/db-connection';
+import { runQuery } from 'src/infra/application-db/query-runner';
 import { initiative, initiativeKeyResult } from 'src/infra/application-db/schema/okr.schema';
 import {
   INewInitiative,
@@ -33,10 +34,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
     item: INewInitiative,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IInitiativeEntity> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .insert(initiative)
         .values({
@@ -49,24 +47,14 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
         })
         .returning();
       return result as IInitiativeEntity;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async delete(
     id: string | number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<void> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       await dbConnection
         .update(initiative)
         .set({
@@ -75,14 +63,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(initiative.id, Number(id)));
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async update(
@@ -90,10 +71,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
     payload: IUpdateInitiative,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IInitiativeEntity> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [existing] = await dbConnection
         .select({ id: initiative.id })
         .from(initiative)
@@ -126,17 +104,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
         .returning();
 
       return updated as IInitiativeEntity;
-    } catch (e) {
-      if (e instanceof BusinessException) {
-        throw e;
-      }
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async query(
@@ -176,10 +144,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
 
     const whereCondition = and(...conditions);
 
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const columnMap: Record<string, PgColumn> = {
         id: initiative.id as unknown as PgColumn,
         slug: initiative.slug as unknown as PgColumn,
@@ -203,7 +168,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
         .$dynamic();
 
       const results = await withPagination(query, page, pageSize);
-      const totalCount = await this.countAll(tenancyInfo);
+      const totalCount = await this.countAll(tenancyInfo, whereCondition);
       const totalPages = Math.ceil(totalCount / pageSize);
 
       return {
@@ -214,70 +179,40 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
         timestamp: new Date(),
         error: null,
       };
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findById(
     id: string | number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IInitiativeEntity | null> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .select({ ...getTableColumns(initiative) })
         .from(initiative)
         .where(and(eq(initiative.id, Number(id)), eq(initiative.isDeleted, false)));
       return (result as IInitiativeEntity) || null;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findBySlug(
     slug: string,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IInitiativeEntity | null> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .select({ ...getTableColumns(initiative) })
         .from(initiative)
         .where(and(eq(initiative.slug, slug), eq(initiative.isDeleted, false)));
       return (result as IInitiativeEntity) || null;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findByOwner(
     ownerPersonId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IInitiativeEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const results = await dbConnection
         .select({ ...getTableColumns(initiative) })
         .from(initiative)
@@ -289,14 +224,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
         )
         .orderBy(desc(initiative.createdAt));
       return results as IInitiativeEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async linkKeyResult(
@@ -304,10 +232,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
     keyResultId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<void> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       // Dedup guard: check if link already exists before inserting
       const existing = await dbConnection
         .select({ id: initiativeKeyResult.id })
@@ -327,14 +252,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
       await dbConnection
         .insert(initiativeKeyResult)
         .values({ initiativeId, keyResultId });
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async unlinkKeyResult(
@@ -342,10 +260,7 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
     keyResultId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<void> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       await dbConnection
         .update(initiativeKeyResult)
         .set({
@@ -359,24 +274,14 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
             eq(initiativeKeyResult.keyResultId, keyResultId),
           ),
         );
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findKeyResultIds(
     initiativeId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<number[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const results = await dbConnection
         .select({ keyResultId: initiativeKeyResult.keyResultId })
         .from(initiativeKeyResult)
@@ -387,85 +292,45 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
           ),
         );
       return results.map((r) => r.keyResultId);
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async existByID(id: number, tenancyInfo: IDBConfigOptions): Promise<boolean> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [{ c }] = await dbConnection
         .select({ c: count() })
         .from(initiative)
         .where(and(eq(initiative.id, id), eq(initiative.isDeleted, false)));
       return Number(c) > 0;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
-  async countAll(tenancyInfo: IDBConfigOptions): Promise<number> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+  async countAll(tenancyInfo: IDBConfigOptions, where?: SQL): Promise<number> {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .select({ count: count() })
         .from(initiative)
-        .where(eq(initiative.isDeleted, false));
+        .where(where ?? eq(initiative.isDeleted, false));
       return result.count;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async queryAll(tenancyInfo: IDBConfigOptions): Promise<IInitiativeEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const results = await dbConnection
         .select({ ...getTableColumns(initiative) })
         .from(initiative)
         .where(eq(initiative.isDeleted, false))
         .orderBy(desc(initiative.createdAt));
       return results as IInitiativeEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findAll(
     searchParams: IQueryInitiativeParams,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IInitiativeEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const baseQuery = dbConnection
         .select({ ...getTableColumns(initiative) })
         .from(initiative)
@@ -478,13 +343,6 @@ export class InitiativeRepository implements BaseRepo<IInitiativeEntity> {
         searchParams.pageSize,
       );
       return result as IInitiativeEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 }

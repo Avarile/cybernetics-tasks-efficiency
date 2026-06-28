@@ -50,6 +50,7 @@ describe('InitiativeStateProjector', () => {
         lastEventAt: '2026-06-27T10:00:00Z',
       }),
       expect.anything(),
+      undefined,
     );
   });
 
@@ -61,6 +62,12 @@ describe('InitiativeStateProjector', () => {
       9,
       expect.objectContaining({ totalTimeLoggedMinutes: 40 }),
       expect.anything(),
+      undefined,
+    );
+    expect(repo.findByInitiativeId).toHaveBeenCalledWith(
+      9,
+      expect.anything(),
+      undefined,
     );
   });
 

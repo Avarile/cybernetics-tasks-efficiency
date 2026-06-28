@@ -23,11 +23,9 @@ import { buildOk, buildCreated } from 'src/utils/shared/response.factory';
 import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentAbility } from 'src/common/casl/current-ability.decorator';
 import { AppAbility } from 'src/common/casl/ability.types';
-import { subject } from '@casl/ability';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { IUserSession } from 'src/modules/module-auth/current-user-module/session.interface';
 import { DbContextService } from 'src/infra/application-db/db-context';
-import { AppException } from 'src/utils/exception.provider';
 
 @ApiTags('interventions')
 @Controller('interventions')
@@ -59,11 +57,7 @@ export class InterventionController {
     @CurrentAbility() ability: AppAbility,
     @Param() params: FindInterventionByIdDTO,
   ): Promise<IBaseResponse> {
-    const existing = await this.interventionService.requireById(params.id, this.ctx.forUser(user.id));
-    if (ability.cannot('delete', subject('Intervention', existing as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot delete this intervention');
-    }
-    await this.interventionService.remove(params.id, this.ctx.forUser(user.id));
+    await this.interventionService.remove(params.id, this.ctx.forUser(user.id), ability);
     return buildOk(null, 'Intervention deleted successfully');
   }
 
@@ -76,11 +70,7 @@ export class InterventionController {
     @Param() params: FindInterventionByIdDTO,
     @Body() dto: UpdateInterventionDTO,
   ): Promise<IBaseResponse> {
-    const existing = await this.interventionService.requireById(params.id, this.ctx.forUser(user.id));
-    if (ability.cannot('update', subject('Intervention', existing as unknown as Record<string, unknown>))) {
-      AppException.throw('FORBIDDEN', 'You cannot update this intervention');
-    }
-    const updated = await this.interventionService.update(params.id, dto, this.ctx.forUser(user.id));
+    const updated = await this.interventionService.update(params.id, dto, this.ctx.forUser(user.id), ability);
     return buildOk(updated, 'Intervention updated successfully');
   }
 

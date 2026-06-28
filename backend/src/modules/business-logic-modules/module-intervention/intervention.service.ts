@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
 import { AppException } from 'src/utils/exception.provider';
+import { AppAbility } from 'src/common/casl/ability.types';
+import { assertAbility } from 'src/common/casl/assert-ability';
 import { InterventionRepository } from './intervention.repo';
 import {
   INewIntervention,
@@ -30,12 +32,20 @@ export class InterventionService {
     return entity!;
   }
 
-  async update(id: number, payload: IUpdateIntervention, ctx: IDBConfigOptions): Promise<IInterventionEntity> {
+  async update(
+    id: number,
+    payload: IUpdateIntervention,
+    ctx: IDBConfigOptions,
+    ability: AppAbility,
+  ): Promise<IInterventionEntity> {
+    const existing = await this.requireById(id, ctx);
+    assertAbility(ability, 'update', 'Intervention', existing, 'You cannot update this intervention');
     return this.repo.update(id, payload, ctx);
   }
 
-  async remove(id: number, ctx: IDBConfigOptions): Promise<void> {
-    await this.requireById(id, ctx);
+  async remove(id: number, ctx: IDBConfigOptions, ability: AppAbility): Promise<void> {
+    const existing = await this.requireById(id, ctx);
+    assertAbility(ability, 'delete', 'Intervention', existing, 'You cannot delete this intervention');
     await this.repo.delete(id, ctx);
   }
 

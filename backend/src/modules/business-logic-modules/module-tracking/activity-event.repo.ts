@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { asc, eq, and } from 'drizzle-orm';
-import { AppException } from '../../../utils/exception.provider';
-import ApplicationDBProvider from 'src/infra/application-db/db-connection';
+import ApplicationDBProvider, { DbExecutor } from 'src/infra/application-db/db-connection';
+import { runQuery } from 'src/infra/application-db/query-runner';
 import { activityEvent } from 'src/infra/application-db/schema/tracking.schema';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
 import {
@@ -16,36 +16,32 @@ export class ActivityEventRepository {
   async append(
     input: IActivityEventInput,
     ctx: IDBConfigOptions,
+    executor?: DbExecutor,
   ): Promise<IActivityEventEntity> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(ctx);
-
-    try {
-      const result = await dbConnection
-        .insert(activityEvent)
-        .values({
-          occurredAt: input.occurredAt ?? new Date().toISOString(),
-          actorPersonId: input.actorPersonId,
-          subjectType: input.subjectType,
-          subjectId: input.subjectId,
-          type: input.type,
-          payload: input.payload ?? {},
-          source: input.source ?? 'human',
-          confidence:
-            input.confidence != null ? String(input.confidence) : null,
-          rawInputId: input.rawInputId ?? null,
-          correlationId: input.correlationId ?? null,
-        })
-        .returning();
-      return result[0] as IActivityEventEntity;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    return runQuery(
+      this.dbProvider,
+      ctx,
+      async (db) => {
+        const result = await db
+          .insert(activityEvent)
+          .values({
+            occurredAt: input.occurredAt ?? new Date().toISOString(),
+            actorPersonId: input.actorPersonId,
+            subjectType: input.subjectType,
+            subjectId: input.subjectId,
+            type: input.type,
+            payload: input.payload ?? {},
+            source: input.source ?? 'human',
+            confidence:
+              input.confidence != null ? String(input.confidence) : null,
+            rawInputId: input.rawInputId ?? null,
+            correlationId: input.correlationId ?? null,
+          })
+          .returning();
+        return result[0] as IActivityEventEntity;
+      },
+      executor,
+    );
   }
 
   async listBySubject(
@@ -53,10 +49,7 @@ export class ActivityEventRepository {
     subjectId: number,
     ctx: IDBConfigOptions,
   ): Promise<IActivityEventEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(ctx);
-
-    try {
+    return runQuery(this.dbProvider, ctx, async (dbConnection) => {
       const results = await dbConnection
         .select()
         .from(activityEvent)
@@ -68,13 +61,6 @@ export class ActivityEventRepository {
         )
         .orderBy(asc(activityEvent.occurredAt));
       return results as IActivityEventEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 }

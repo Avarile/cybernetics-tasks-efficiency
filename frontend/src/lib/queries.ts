@@ -46,7 +46,7 @@ export interface ActivityEvent {
 function useApiClient() {
   const { token } = useAuth();
   return createApiClient({
-    baseUrl: '/api',
+    baseUrl: '/api/v1',
     getToken: () => token,
   });
 }

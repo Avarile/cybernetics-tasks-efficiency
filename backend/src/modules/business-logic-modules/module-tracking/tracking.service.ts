@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
+import ApplicationDBProvider, { DbExecutor } from 'src/infra/application-db/db-connection';
 import { ActivityEventRepository } from './activity-event.repo';
 import { KeyResultMeasurementRepository } from './projection/key-result-measurement.repo';
+import { InitiativeStateProjector } from './projection/initiative-state.projector';
 import { KeyResultRepository } from '../module-key-result/key-result.repo';
 import {
   ACTIVITY_EVENT_EMITTED,
@@ -19,14 +21,37 @@ export class TrackingService {
     private readonly eventEmitter: EventEmitter2,
     private readonly measurements: KeyResultMeasurementRepository,
     private readonly keyResults: KeyResultRepository,
+    private readonly dbProvider: ApplicationDBProvider,
+    private readonly projector: InitiativeStateProjector,
   ) {}
+
+  /**
+   * Append the event and apply its projection on the same transactional
+   * connection, so the event log and read model commit atomically.
+   */
+  private async appendAndProject(
+    tx: DbExecutor,
+    input: IActivityEventInput,
+    ctx: IDBConfigOptions,
+  ): Promise<IActivityEventEntity> {
+    const event = await this.activityEvents.append(input, ctx, tx);
+    await this.projector.apply(event, ctx, tx);
+    return event;
+  }
+
+  /** Notify decoupled, non-critical listeners after the write has committed. */
+  private notify(event: IActivityEventEntity, ctx: IDBConfigOptions): void {
+    this.eventEmitter.emit(ACTIVITY_EVENT_EMITTED, { event, ctx });
+  }
 
   private async emit(
     input: IActivityEventInput,
     ctx: IDBConfigOptions,
   ): Promise<IActivityEventEntity> {
-    const event = await this.activityEvents.append(input, ctx);
-    await this.eventEmitter.emitAsync(ACTIVITY_EVENT_EMITTED, { event, ctx });
+    const event = await this.dbProvider.withTenantTransaction(ctx, (tx) =>
+      this.appendAndProject(tx, input, ctx),
+    );
+    this.notify(event, ctx);
     return event;
   }
 
@@ -217,18 +242,23 @@ export class TrackingService {
     value: string,
     ctx: IDBConfigOptions,
   ): Promise<IActivityEventEntity> {
-    const event = await this.emit(
-      {
-        subjectType: 'key_result',
-        subjectId: keyResultId,
-        type: 'key_result_measured',
-        actorPersonId: actorId,
-        payload: { value },
-      },
-      ctx,
-    );
-    await this.measurements.add(keyResultId, value, event.occurredAt, event.id, ctx);
-    await this.keyResults.updateCurrentValue(keyResultId, value, ctx);
+    const event = await this.dbProvider.withTenantTransaction(ctx, async (tx) => {
+      const ev = await this.appendAndProject(
+        tx,
+        {
+          subjectType: 'key_result',
+          subjectId: keyResultId,
+          type: 'key_result_measured',
+          actorPersonId: actorId,
+          payload: { value },
+        },
+        ctx,
+      );
+      await this.measurements.add(keyResultId, value, ev.occurredAt, ev.id, ctx, tx);
+      await this.keyResults.updateCurrentValue(keyResultId, value, ctx, tx);
+      return ev;
+    });
+    this.notify(event, ctx);
     return event;
   }
 }

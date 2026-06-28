@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const client = createApiClient({
-      baseUrl: '/api',
+      baseUrl: '/api/v1',
       getToken: () => null,
     });
 

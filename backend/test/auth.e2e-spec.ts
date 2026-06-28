@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, VersioningType } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -14,6 +14,7 @@ describe('Auth (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
+    app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
     app.use(cookieParser());
     await app.init();
   });
@@ -23,7 +24,7 @@ describe('Auth (e2e)', () => {
 
   it('login returns an access token and sets the refresh cookie', async () => {
     const res = await request(app.getHttpServer())
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: env.ADMIN_ACCOUNT, password: env.ADMIN_ACCOUNT_PASSWORD })
       .expect(200);
     expect(res.body.data.accessToken).toEqual(expect.any(String));
@@ -34,28 +35,28 @@ describe('Auth (e2e)', () => {
     refreshCookie = setCookie;
   });
 
-  it('GET /api/auth/me returns the current user with a valid token', async () => {
+  it('GET /api/v1/auth/me returns the current user with a valid token', async () => {
     const res = await request(app.getHttpServer())
-      .get('/api/auth/me')
+      .get('/api/v1/auth/me')
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
     expect(res.body.data.email).toBe(env.ADMIN_ACCOUNT);
   });
 
   it('rejects protected routes without a token (401)', async () => {
-    await request(app.getHttpServer()).get('/api/auth/me').expect(401);
+    await request(app.getHttpServer()).get('/api/v1/auth/me').expect(401);
   });
 
-  it('removed POST /api/auth/register returns 404', async () => {
+  it('removed POST /api/v1/auth/register returns 404', async () => {
     await request(app.getHttpServer())
-      .post('/api/auth/register')
+      .post('/api/v1/auth/register')
       .send({ name: 'x', email: 'x@y.com', password: 'password1' })
       .expect(404);
   });
 
   it('refresh rotates the token using the cookie', async () => {
     const res = await request(app.getHttpServer())
-      .post('/api/auth/refresh')
+      .post('/api/v1/auth/refresh')
       .set('Cookie', refreshCookie)
       .expect(200);
     expect(res.body.data.accessToken).toEqual(expect.any(String));
@@ -64,19 +65,19 @@ describe('Auth (e2e)', () => {
   it('admin can create a member; created user can log in and is forbidden from creating objectives', async () => {
     const email = `member_${Date.now()}@example.com`;
     await request(app.getHttpServer())
-      .post('/api/persons')
+      .post('/api/v1/persons')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ name: 'Member', email, password: 'password123', role: 'member' })
       .expect(201);
 
     const login = await request(app.getHttpServer())
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email, password: 'password123' })
       .expect(200);
     const memberToken = login.body.data.accessToken;
 
     await request(app.getHttpServer())
-      .post('/api/objectives')
+      .post('/api/v1/objectives')
       .set('Authorization', `Bearer ${memberToken}`)
       .send({ title: 'X', ownerPersonId: 1, scope: 'team', period: '2026-Q3' })
       .expect(403);

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, getTableColumns } from 'drizzle-orm';
-import { AppException } from '../../../utils/exception.provider';
 import ApplicationDBProvider from 'src/infra/application-db/db-connection';
+import { runQuery } from 'src/infra/application-db/query-runner';
 import { alignmentLink } from 'src/infra/application-db/schema/okr.schema';
 import { IDBConfigOptions } from '../../../infra/application-db/application-db.module';
 import { IAlignmentLinkEntity, INewAlignmentLink } from './alignment.interface';
@@ -14,10 +14,7 @@ export class AlignmentRepository {
     payload: INewAlignmentLink,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IAlignmentLinkEntity> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const [result] = await dbConnection
         .insert(alignmentLink)
         .values({
@@ -29,21 +26,11 @@ export class AlignmentRepository {
         })
         .returning();
       return result as IAlignmentLinkEntity;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async unlink(id: number, tenancyInfo: IDBConfigOptions): Promise<void> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       await dbConnection
         .update(alignmentLink)
         .set({
@@ -52,14 +39,7 @@ export class AlignmentRepository {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(alignmentLink.id, id));
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   /**
@@ -71,10 +51,7 @@ export class AlignmentRepository {
     toId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IAlignmentLinkEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const results = await dbConnection
         .select({ ...getTableColumns(alignmentLink) })
         .from(alignmentLink)
@@ -86,14 +63,7 @@ export class AlignmentRepository {
           ),
         );
       return results as IAlignmentLinkEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async findParents(
@@ -101,10 +71,7 @@ export class AlignmentRepository {
     fromId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IAlignmentLinkEntity[]> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(tenancyInfo);
-
-    try {
+    return runQuery(this.dbProvider, tenancyInfo, async (dbConnection) => {
       const results = await dbConnection
         .select({ ...getTableColumns(alignmentLink) })
         .from(alignmentLink)
@@ -116,13 +83,6 @@ export class AlignmentRepository {
           ),
         );
       return results as IAlignmentLinkEntity[];
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    });
   }
 }

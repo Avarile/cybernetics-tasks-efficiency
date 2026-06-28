@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
 import { AppException } from 'src/utils/exception.provider';
+import { AppAbility } from 'src/common/casl/ability.types';
+import { assertAbility } from 'src/common/casl/assert-ability';
 import { PersonRepository } from './person.repo';
 import {
   INewPerson,
@@ -24,7 +26,14 @@ export class PersonService {
     return entity!;
   }
 
-  async update(id: number, payload: IUpdatePerson, ctx: IDBConfigOptions): Promise<IPersonEntity> {
+  async update(
+    id: number,
+    payload: IUpdatePerson,
+    ctx: IDBConfigOptions,
+    ability: AppAbility,
+  ): Promise<IPersonEntity> {
+    const existing = await this.requireById(id, ctx);
+    assertAbility(ability, 'update', 'Person', existing, 'You cannot update this person');
     return this.repo.update(id, payload, ctx);
   }
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { AppException } from 'src/utils/exception.provider';
-import ApplicationDBProvider from 'src/infra/application-db/db-connection';
+import ApplicationDBProvider, { DbExecutor } from 'src/infra/application-db/db-connection';
+import { runQuery } from 'src/infra/application-db/query-runner';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
 import { initiativeState } from 'src/infra/application-db/schema/tracking.schema';
 
@@ -27,53 +27,47 @@ export class InitiativeStateRepository {
   async findByInitiativeId(
     initiativeId: number,
     ctx: IDBConfigOptions,
+    executor?: DbExecutor,
   ): Promise<IInitiativeStateRow | null> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(ctx);
-    try {
-      const rows = await dbConnection
-        .select()
-        .from(initiativeState)
-        .where(eq(initiativeState.initiativeId, initiativeId));
-      return (rows[0] as IInitiativeStateRow) ?? null;
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+    return runQuery(
+      this.dbProvider,
+      ctx,
+      async (db) => {
+        const rows = await db
+          .select()
+          .from(initiativeState)
+          .where(eq(initiativeState.initiativeId, initiativeId));
+        return (rows[0] as IInitiativeStateRow) ?? null;
+      },
+      executor,
+    );
   }
 
   async upsert(
     initiativeId: number,
     patch: InitiativeStatePatch,
     ctx: IDBConfigOptions,
+    executor?: DbExecutor,
   ): Promise<void> {
-    const { dbConnection, client } =
-      await this.dbProvider.getTenantDBConnection(ctx);
-    try {
-      await dbConnection
-        .insert(initiativeState)
-        .values({
-          initiativeId,
-          ...(patch as object),
-        })
-        .onConflictDoUpdate({
-          target: initiativeState.initiativeId,
-          set: {
+    return runQuery(
+      this.dbProvider,
+      ctx,
+      async (db) => {
+        await db
+          .insert(initiativeState)
+          .values({
+            initiativeId,
             ...(patch as object),
-            updatedAt: new Date().toISOString(),
-          },
-        });
-    } catch (e) {
-      AppException.throw(
-        'DATABASE_QUERY_FAILED',
-        e instanceof Error ? e.message : 'Database operation failed',
-      );
-    } finally {
-      client.release();
-    }
+          })
+          .onConflictDoUpdate({
+            target: initiativeState.initiativeId,
+            set: {
+              ...(patch as object),
+              updatedAt: new Date().toISOString(),
+            },
+          });
+      },
+      executor,
+    );
   }
 }
