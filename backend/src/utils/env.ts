@@ -26,10 +26,11 @@ const envSchema = z.object({
   ADMIN_ACCOUNT: z.string(),
   ADMIN_ACCOUNT_PASSWORD: z.string(),
 
-  // bullmq/redis (infra wired this phase, used Phase 2+)
-  REDIS_BULLMQ_HOST: z.string().default('localhost'),
-  REDIS_BULLMQ_PORT: z.coerce.number().default(6379),
-  REDIS_BULLMQ_PASSWORD: z.string().optional(),
+  // redis
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.coerce.number().default(6379),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_CACHE_DB: z.coerce.number().default(1),
   REDIS_BULLMQ_DB: z.coerce.number().default(0),
 });
 
