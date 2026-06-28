@@ -1,2 +1,7 @@
-implementing the authentication: 
-claude --resume 21fbbc91-6806-4d8b-bedd-42bc2f20441f
+Current: implement the cache and bullmq
+1. according to docs/superpowers/specs/2026-06-28-redis-cache-bullmq-infra-design.md
+
+
+design the task tracking using plane as references
+1. schema
+2. logic
