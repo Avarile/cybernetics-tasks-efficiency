@@ -104,4 +104,17 @@ describe('defineAbilityFor', () => {
     expect(a.can('read', 'Label')).toBe(true);
     expect(a.can('create', 'Label')).toBe(false);
   });
+
+  it('member can create attachments and manage only their own', () => {
+    const a = defineAbilityFor(user({ id: 7, role: 'member' }));
+    expect(a.can('create', 'Attachment')).toBe(true);
+    expect(a.can('read', subject('Attachment', { createdByPersonId: 7 }))).toBe(true);
+    expect(a.can('delete', subject('Attachment', { createdByPersonId: 8 }))).toBe(false);
+  });
+
+  it('executive can read attachments but not create', () => {
+    const a = defineAbilityFor(user({ role: 'executive' }));
+    expect(a.can('read', 'Attachment')).toBe(true);
+    expect(a.can('create', 'Attachment')).toBe(false);
+  });
 });

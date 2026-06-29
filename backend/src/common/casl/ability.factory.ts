@@ -37,6 +37,8 @@ export function defineAbilityFor(user: IUserSession): AppAbility {
       can('manage', 'AlignmentLink');
       can('manage', 'Intervention', { decidedByPersonId: user.id });
       can('create', 'ActivityEvent', { actorPersonId: user.id });
+      can('create', 'Attachment');
+      can(['read', 'delete'], 'Attachment', { createdByPersonId: user.id });
       break;
 
     case 'member':
@@ -57,6 +59,8 @@ export function defineAbilityFor(user: IUserSession): AppAbility {
       can('create', 'ActivityEvent', { actorPersonId: user.id });
       can('read', 'ActivityEvent', { actorPersonId: user.id });
       can('update', 'Person', { id: user.id });
+      can('create', 'Attachment');
+      can(['read', 'delete'], 'Attachment', { createdByPersonId: user.id });
       break;
   }
 
