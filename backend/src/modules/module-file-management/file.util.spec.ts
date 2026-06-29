@@ -37,6 +37,11 @@ describe('file.util', () => {
     expect(cipher.decrypt(token)).toEqual({ expiresDate: 123, respHeaders: { 'Content-Type': 'image/png' } });
   });
 
+  it('TokenCipher.decrypt rejects a tampered token as FILE_TOKEN_INVALID', () => {
+    const cipher = new TokenCipher('test-secret');
+    expect(() => cipher.decrypt('not-a-valid-token')).toThrow('Invalid or expired file token');
+  });
+
   it('assertPathWithinStorage rejects traversal and absolute paths', () => {
     expect(() => assertPathWithinStorage('../escape', '/srv/store')).toThrow();
     expect(() => assertPathWithinStorage('/etc/passwd', '/srv/store')).toThrow();

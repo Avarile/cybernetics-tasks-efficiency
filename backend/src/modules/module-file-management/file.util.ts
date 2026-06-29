@@ -45,7 +45,8 @@ export function isPdf(mimetype: string): boolean {
 }
 
 export function getExtensionPreview(mimetype: string): string {
-  return INLINE_PREVIEW.has((mimetype ?? '').toLowerCase()) ? mimetype : 'application/octet-stream';
+  const normalized = (mimetype ?? '').toLowerCase();
+  return INLINE_PREVIEW.has(normalized) ? normalized : 'application/octet-stream';
 }
 
 export function assertPathWithinStorage(relativePath: string, storageDir: string): string {
@@ -78,10 +79,14 @@ export class TokenCipher {
     return Buffer.concat([iv, tag, data]).toString('base64url');
   }
   decrypt(token: string): ILocalReadToken {
-    const raw = Buffer.from(token, 'base64url');
-    const decipher = createDecipheriv('aes-256-gcm', this.key, raw.subarray(0, 12));
-    decipher.setAuthTag(raw.subarray(12, 28));
-    const out = Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]);
-    return JSON.parse(out.toString('utf8')) as ILocalReadToken;
+    try {
+      const raw = Buffer.from(token, 'base64url');
+      const decipher = createDecipheriv('aes-256-gcm', this.key, raw.subarray(0, 12));
+      decipher.setAuthTag(raw.subarray(12, 28));
+      const out = Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]);
+      return JSON.parse(out.toString('utf8')) as ILocalReadToken;
+    } catch {
+      AppException.throw('FILE_TOKEN_INVALID', 'Invalid or expired file token');
+    }
   }
 }
