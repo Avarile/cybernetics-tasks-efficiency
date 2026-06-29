@@ -10,6 +10,7 @@ import {
   buildEmailFrom, hbsHelpers, isMailConfigured, buildSmtpOptions, createNoOpTransport,
 } from './mail.helpers';
 import { EmailService } from './email.service';
+import { EmailProcessor } from './email.processor';
 
 export function mailerOptionsFactory(): MailerOptions {
   const configured = isMailConfigured(env.MAIL_HOST, env.MAIL_AUTH_USER, env.MAIL_AUTH_PASS);
@@ -38,7 +39,7 @@ export function mailerOptionsFactory(): MailerOptions {
     MailerModule.forRoot(mailerOptionsFactory()),
     BullModule.registerQueue({ name: QueueName.EMAIL }),
   ],
-  providers: [EmailService],
+  providers: [EmailService, EmailProcessor],
   exports: [EmailService],
 })
 export class EmailModule {}
