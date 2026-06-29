@@ -94,6 +94,9 @@ export class FileService {
       env.FILE_STORAGE_PROVIDER === 'local'
         ? await this.cache.get<{ mimetype: string; hash: string; size: number }>(cacheKey.fileUpload(ctx.schema_id, token))
         : undefined;
+    if (env.FILE_STORAGE_PROVIDER === 'local' && !hint) {
+      AppException.throw('FILE_TOKEN_INVALID', 'Upload not completed');
+    }
     const meta = await this.adapter.getObjectMeta(sig.bucket, sig.path, hint);
     const row = await this.repo.create(
       {
@@ -133,12 +136,12 @@ export class FileService {
 
   async readLocalFile(path: string, token?: string): Promise<{ fileStream: NodeJS.ReadableStream; headers: Record<string, string> }> {
     const local = this.adapter as LocalStorage;
-    const { bucket } = local.parsePath(path);
+    const { bucket, token: pathToken } = local.parsePath(path);
     let headers: Record<string, string> = {};
     if (token && !StorageAdapter.isPublicBucket(bucket)) {
       headers = (local.verifyReadToken(token).respHeaders as Record<string, string>) ?? {};
     } else {
-      const att = await this.repo.findByToken(local.parsePath(path).token, this.dbContext.system());
+      const att = await this.repo.findByToken(pathToken, this.dbContext.system());
       if (!att) AppException.throw('FILE_TOKEN_INVALID', 'Invalid path');
       headers['Content-Type'] = getExtensionPreview(att.mimetype);
     }
@@ -149,7 +152,7 @@ export class FileService {
   localConditionalCaching(path: string, reqHeaders: IncomingHttpHeaders, res: Response): boolean {
     const local = this.adapter as LocalStorage;
     const lastModified = local.getLastModifiedTime(path);
-    if (!lastModified) AppException.throw('FILE_TOKEN_INVALID', 'Attachment not found');
+    if (!lastModified) AppException.notFound('Attachment', path);
     const ifModifiedSince = reqHeaders['if-modified-since'];
     if (!ifModifiedSince || Math.floor(new Date(ifModifiedSince).getTime() / 1000) < Math.floor(lastModified / 1000)) {
       res.set('Last-Modified', new Date(lastModified).toUTCString());

@@ -1,5 +1,6 @@
 import { FileService } from './file.service';
 import { FilePurpose } from './file.interface';
+import { cacheKey } from 'src/infra/cache/cache.constants';
 
 const ctx = { database_uri: 'x', schema_id: 'public', user_id: 7 } as any;
 
@@ -50,6 +51,8 @@ describe('FileService', () => {
 
   it('notify creates the row, enqueues a crop job, and returns a link', async () => {
     await svc.signature({ purpose: FilePurpose.General, contentType: 'text/plain', contentLength: 5 }, ctx);
+    // simulate uploadLocal having completed (local provider): seed the upload-meta cache
+    await cache.set(cacheKey.fileUpload('public', 'tok'), { mimetype: 'text/plain', hash: 'h', size: 5 });
     const out = await svc.notify('tok', ctx);
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ token: 'tok', createdByPersonId: 7 }), ctx);
     expect(queue.add).toHaveBeenCalled();
