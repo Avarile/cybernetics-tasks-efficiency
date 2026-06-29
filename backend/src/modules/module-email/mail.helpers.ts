@@ -1,4 +1,5 @@
 import { createTransport } from 'nodemailer';
+import type { Transport, SentMessageInfo } from 'nodemailer';
 import { AppException } from 'src/utils/exception.provider';
 
 export interface ISmtpEnv {
@@ -53,13 +54,13 @@ export async function verifyTransport(config: any): Promise<true> {
  * and verify() returns a Promise (required by @nestjs-modules/mailer@1.x).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createNoOpTransport(): Record<string, any> {
+export function createNoOpTransport(): Transport {
   // Use a real jsonTransport internally for the send path
   const inner = createTransport({ jsonTransport: true });
   return {
     name: 'JSONTransport',
     version: '1.0.0',
-    verify(_callback?: (err: Error | null, success: boolean) => void): Promise<true> {
+    verify(_callback?: (err: Error | null, success: true) => void): Promise<true> {
       return Promise.resolve(true);
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
