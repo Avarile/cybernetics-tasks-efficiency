@@ -11,6 +11,7 @@ export class ScheduleRegistrar implements OnApplicationBootstrap {
 
   constructor(
     @InjectQueue(QueueName.EXAMPLE) private readonly exampleQueue: Queue,
+    @InjectQueue(QueueName.FILE_CROP) private readonly fileCropQueue: Queue,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -20,6 +21,7 @@ export class ScheduleRegistrar implements OnApplicationBootstrap {
   private queueFor(job: ScheduledJob): Queue {
     const map: Record<QueueName, Queue> = {
       [QueueName.EXAMPLE]: this.exampleQueue,
+      [QueueName.FILE_CROP]: this.fileCropQueue,
     };
     return map[job.queue];
   }

@@ -35,6 +35,25 @@ const envSchema = z.object({
 
   // task tracking
   TASK_KEY_PREFIX: z.string().default('TASK'),
+
+  // file management / storage
+  FILE_STORAGE_PROVIDER: z.enum(['local', 'minio']).default('local'),
+  FILE_PRIVATE_BUCKET: z.string().default('private'),
+  FILE_PUBLIC_BUCKET: z.string().default('public'),
+  FILE_UPLOAD_METHOD: z.string().default('PUT'),
+  FILE_TOKEN_EXPIRE_IN: z.string().default('6d'),
+  FILE_URL_EXPIRE_IN: z.string().default('6d'),
+  FILE_MAX_UPLOAD_SIZE: z.coerce.number().default(52428800),
+  FILE_TOKEN_SECRET: z.string().default('dev-insecure-file-token-secret-change-me'),
+  FILE_LOCAL_PATH: z.string().default('.storage'),
+  MINIO_ENDPOINT: z.string().optional(),
+  MINIO_PORT: z.coerce.number().default(9000),
+  MINIO_USE_SSL: z.string().transform((v) => v === 'true').default('false'),
+  MINIO_ACCESS_KEY: z.string().optional(),
+  MINIO_SECRET_KEY: z.string().optional(),
+  MINIO_REGION: z.string().optional(),
+  MINIO_INTERNAL_ENDPOINT: z.string().optional(),
+  MINIO_INTERNAL_PORT: z.coerce.number().default(9000),
 });
 
 const env = envSchema.parse(process.env);

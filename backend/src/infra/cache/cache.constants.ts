@@ -10,4 +10,8 @@ export const cacheKey = {
   person: (schema: string, id: number | string) => `cyb:${schema}:person:${id}`,
   organization: (schema: string, id: number | string) => `cyb:${schema}:org:${id}`,
   team: (schema: string, id: number | string) => `cyb:${schema}:team:${id}`,
+  fileSig: (schema: string, token: string) => `cyb:${schema}:file:sig:${token}`,
+  fileLocalSig: (schema: string, token: string) => `cyb:${schema}:file:lsig:${token}`,
+  fileUpload: (schema: string, token: string) => `cyb:${schema}:file:upload:${token}`,
+  filePreview: (schema: string, token: string) => `cyb:${schema}:file:preview:${token}`,
 };

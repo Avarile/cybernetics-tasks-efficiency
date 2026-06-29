@@ -9,6 +9,10 @@ export const ERROR_CATALOG = {
   FORBIDDEN:             { status: HttpStatus.FORBIDDEN,             message: 'You do not have permission to perform this action' },
   SYSTEM_INTERNAL_ERROR: { status: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Internal server error' },
   SERVICE_UNAVAILABLE:   { status: HttpStatus.SERVICE_UNAVAILABLE,   message: 'Service temporarily unavailable' },
+  FILE_TOKEN_INVALID:    { status: HttpStatus.BAD_REQUEST,            message: 'Invalid or expired file token' },
+  FILE_TOO_LARGE:        { status: HttpStatus.PAYLOAD_TOO_LARGE,      message: 'File exceeds maximum upload size' },
+  FILE_TYPE_REJECTED:    { status: HttpStatus.UNSUPPORTED_MEDIA_TYPE, message: 'File type not allowed' },
+  STORAGE_OPERATION_FAILED: { status: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Storage operation failed' },
 } as const satisfies Record<string, { status: HttpStatus; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;
