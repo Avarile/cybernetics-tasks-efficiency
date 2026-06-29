@@ -12,6 +12,7 @@ import { InterventionModule } from './business-logic-modules/module-intervention
 import { LabelModule } from './business-logic-modules/module-label/label.module';
 import { TaskModule } from './business-logic-modules/module-task/task.module';
 import { AuthModule } from './module-auth/auth.module';
+import { FileManagementModule } from './module-file-management/file.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AuthModule } from './module-auth/auth.module';
     InterventionModule,
     LabelModule,
     TaskModule,
+    FileManagementModule,
   ],
 })
 export class MainModule {}
