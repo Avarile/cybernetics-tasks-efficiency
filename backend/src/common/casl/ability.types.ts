@@ -15,6 +15,7 @@ export type AppSubjectName =
   | 'ActivityEvent'
   | 'Task'
   | 'Label'
+  | 'Attachment'
   | 'all';
 
 /**
