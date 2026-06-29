@@ -13,6 +13,7 @@ import { LabelModule } from './business-logic-modules/module-label/label.module'
 import { TaskModule } from './business-logic-modules/module-task/task.module';
 import { AuthModule } from './module-auth/auth.module';
 import { FileManagementModule } from './module-file-management/file.module';
+import { EmailModule } from './module-email/email.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { FileManagementModule } from './module-file-management/file.module';
     LabelModule,
     TaskModule,
     FileManagementModule,
+    EmailModule,
   ],
 })
 export class MainModule {}

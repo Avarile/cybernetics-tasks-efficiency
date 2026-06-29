@@ -1,5 +1,4 @@
 import { createTransport } from 'nodemailer';
-import type { Transporter } from 'nodemailer';
 import { AppException } from 'src/utils/exception.provider';
 
 export interface ISmtpEnv {
@@ -48,18 +47,26 @@ export async function verifyTransport(config: any): Promise<true> {
 }
 
 /**
- * No-op transport for when SMTP is not configured. jsonTransport does not send;
- * its default verify() returns false, but @nestjs-modules/mailer calls verify().then()
- * unconditionally, so we patch verify() to resolve.
+ * No-op transport plugin for when SMTP is not configured.
+ * Uses jsonTransport semantics (sendMail returns a JSON string with rendered html).
+ * Returns a transport plugin object so that MailerTransportFactory wraps it correctly
+ * and verify() returns a Promise (required by @nestjs-modules/mailer@1.x).
  */
-export function createNoOpTransport(): Transporter {
-  const transport = createTransport({ jsonTransport: true });
-  const originalVerify = transport.verify.bind(transport);
-  transport.verify = function (callback?: (err: Error | null, success: boolean) => void) {
-    if (callback) return originalVerify(callback);
-    return Promise.resolve(true);
-  } as typeof transport.verify;
-  return transport;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createNoOpTransport(): Record<string, any> {
+  // Use a real jsonTransport internally for the send path
+  const inner = createTransport({ jsonTransport: true });
+  return {
+    name: 'JSONTransport',
+    version: '1.0.0',
+    verify(_callback?: (err: Error | null, success: boolean) => void): Promise<true> {
+      return Promise.resolve(true);
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    send(mail: any, callback: (err: Error | null, info: any) => void): void {
+      inner.sendMail(mail.data, callback);
+    },
+  };
 }
 
 export function hbsHelpers(publicOrigin: string) {
