@@ -44,6 +44,7 @@
     "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
     "luxon": "^3.6.1",
+    "minio": "^8.0.7",
     "passport": "^0.7",
     "passport-jwt": "^4",
     "passport-local": "^1",
