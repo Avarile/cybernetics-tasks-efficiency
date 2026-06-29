@@ -7,8 +7,12 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { subject } from '@casl/ability';
 import { CheckPolicies } from 'src/common/casl/policy.types';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { CurrentAbility } from 'src/common/casl/current-ability.decorator';
+import { AppAbility } from 'src/common/casl/ability.types';
+import { assertAbility } from 'src/common/casl/assert-ability';
 import { DbContextService } from 'src/infra/application-db/db-context';
 import { IBaseResponse } from 'src/utils/shared/interface';
 import { buildOk } from 'src/utils/shared/response.factory';

@@ -40,6 +40,25 @@ export class TaskRepository implements BaseRepo<ITaskEntity> {
     });
   }
 
+  async updateCompletedAt(
+    taskId: number,
+    completedAt: string,
+    ctx: IDBConfigOptions,
+    executor?: DbExecutor,
+  ): Promise<void> {
+    return runQuery(
+      this.dbProvider,
+      ctx,
+      async (db) => {
+        await db
+          .update(task)
+          .set({ completedAt, updatedAt: new Date().toISOString() })
+          .where(eq(task.id, taskId));
+      },
+      executor,
+    );
+  }
+
   async updateStatus(
     taskId: number,
     status: TaskStatus,

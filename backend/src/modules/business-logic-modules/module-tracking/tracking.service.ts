@@ -2,10 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
 import ApplicationDBProvider, { DbExecutor } from 'src/infra/application-db/db-connection';
+import { AppException } from 'src/utils/exception.provider';
 import { ActivityEventRepository } from './activity-event.repo';
 import { KeyResultMeasurementRepository } from './projection/key-result-measurement.repo';
 import { InitiativeStateProjector } from './projection/initiative-state.projector';
+import { InitiativeStateRepository } from './projection/initiative-state.repo';
 import { TaskStateProjector } from './projection/task-state.projector';
+import { TaskStateRepository } from './projection/task-state.repo';
 import { KeyResultRepository } from '../module-key-result/key-result.repo';
 import {
   ACTIVITY_EVENT_EMITTED,
@@ -14,6 +17,17 @@ import {
   IActivityEventInput,
   IActivityEventEntity,
 } from './tracking.interface';
+
+// Valid prior states for each lifecycle event type.
+const LIFECYCLE_TRANSITIONS: Partial<Record<IActivityEventInput['type'], string[]>> = {
+  started:   ['not_started'],
+  paused:    ['in_progress'],
+  resumed:   ['paused'],
+  blocked:   ['in_progress'],
+  unblocked: ['blocked'],
+  completed: ['in_progress', 'paused'],
+  cancelled: ['not_started', 'in_progress', 'paused', 'blocked'],
+};
 
 @Injectable()
 export class TrackingService {
@@ -24,7 +38,9 @@ export class TrackingService {
     private readonly keyResults: KeyResultRepository,
     private readonly dbProvider: ApplicationDBProvider,
     private readonly projector: InitiativeStateProjector,
+    private readonly initiativeStateRepo: InitiativeStateRepository,
     private readonly taskProjector: TaskStateProjector,
+    private readonly taskStateRepo: TaskStateRepository,
   ) {}
 
   /**
@@ -40,6 +56,29 @@ export class TrackingService {
     await this.projector.apply(event, ctx, tx);
     await this.taskProjector.apply(event, ctx, tx);
     return event;
+  }
+
+  private async assertValidTransition(
+    subjectType: 'initiative' | 'task',
+    subjectId: number,
+    eventType: IActivityEventInput['type'],
+    ctx: IDBConfigOptions,
+  ): Promise<void> {
+    const allowed = LIFECYCLE_TRANSITIONS[eventType];
+    if (!allowed) return;
+
+    const current =
+      subjectType === 'initiative'
+        ? await this.initiativeStateRepo.findByInitiativeId(subjectId, ctx)
+        : await this.taskStateRepo.findByTaskId(subjectId, ctx);
+
+    const currentStatus = current?.status ?? 'not_started';
+    if (!allowed.includes(currentStatus)) {
+      AppException.throw(
+        'VALIDATION_FAILED',
+        `Cannot '${eventType}' a ${subjectType} that is currently '${currentStatus}'`,
+      );
+    }
   }
 
   /** Notify decoupled, non-critical listeners after the write has committed. */
@@ -58,7 +97,7 @@ export class TrackingService {
     return event;
   }
 
-  /** Emit a lifecycle event for any subject type and project it. */
+  /** Emit a lifecycle event for any subject type — validates the transition first. */
   private async emitLifecycle(
     subjectType: 'initiative' | 'task',
     subjectId: number,
@@ -67,6 +106,7 @@ export class TrackingService {
     ctx: IDBConfigOptions,
     payload?: Record<string, unknown>,
   ): Promise<IActivityEventEntity> {
+    await this.assertValidTransition(subjectType, subjectId, type, ctx);
     return this.emit({ subjectType, subjectId, type, actorPersonId: actorId, payload }, ctx);
   }
 
@@ -76,16 +116,8 @@ export class TrackingService {
     ctx: IDBConfigOptions,
     payload?: Record<string, unknown>,
   ): Promise<IActivityEventEntity> {
-    return this.emit(
-      {
-        subjectType: 'initiative',
-        subjectId: initiativeId,
-        type: 'started',
-        actorPersonId: actorId,
-        payload,
-      },
-      ctx,
-    );
+    await this.assertValidTransition('initiative', initiativeId, 'started', ctx);
+    return this.emit({ subjectType: 'initiative', subjectId: initiativeId, type: 'started', actorPersonId: actorId, payload }, ctx);
   }
 
   async pause(
@@ -94,16 +126,8 @@ export class TrackingService {
     ctx: IDBConfigOptions,
     payload?: Record<string, unknown>,
   ): Promise<IActivityEventEntity> {
-    return this.emit(
-      {
-        subjectType: 'initiative',
-        subjectId: initiativeId,
-        type: 'paused',
-        actorPersonId: actorId,
-        payload,
-      },
-      ctx,
-    );
+    await this.assertValidTransition('initiative', initiativeId, 'paused', ctx);
+    return this.emit({ subjectType: 'initiative', subjectId: initiativeId, type: 'paused', actorPersonId: actorId, payload }, ctx);
   }
 
   async resume(
@@ -112,16 +136,8 @@ export class TrackingService {
     ctx: IDBConfigOptions,
     payload?: Record<string, unknown>,
   ): Promise<IActivityEventEntity> {
-    return this.emit(
-      {
-        subjectType: 'initiative',
-        subjectId: initiativeId,
-        type: 'resumed',
-        actorPersonId: actorId,
-        payload,
-      },
-      ctx,
-    );
+    await this.assertValidTransition('initiative', initiativeId, 'resumed', ctx);
+    return this.emit({ subjectType: 'initiative', subjectId: initiativeId, type: 'resumed', actorPersonId: actorId, payload }, ctx);
   }
 
   async block(
@@ -130,16 +146,8 @@ export class TrackingService {
     ctx: IDBConfigOptions,
     payload?: Record<string, unknown>,
   ): Promise<IActivityEventEntity> {
-    return this.emit(
-      {
-        subjectType: 'initiative',
-        subjectId: initiativeId,
-        type: 'blocked',
-        actorPersonId: actorId,
-        payload,
-      },
-      ctx,
-    );
+    await this.assertValidTransition('initiative', initiativeId, 'blocked', ctx);
+    return this.emit({ subjectType: 'initiative', subjectId: initiativeId, type: 'blocked', actorPersonId: actorId, payload }, ctx);
   }
 
   async unblock(
@@ -148,16 +156,8 @@ export class TrackingService {
     ctx: IDBConfigOptions,
     payload?: Record<string, unknown>,
   ): Promise<IActivityEventEntity> {
-    return this.emit(
-      {
-        subjectType: 'initiative',
-        subjectId: initiativeId,
-        type: 'unblocked',
-        actorPersonId: actorId,
-        payload,
-      },
-      ctx,
-    );
+    await this.assertValidTransition('initiative', initiativeId, 'unblocked', ctx);
+    return this.emit({ subjectType: 'initiative', subjectId: initiativeId, type: 'unblocked', actorPersonId: actorId, payload }, ctx);
   }
 
   async complete(
@@ -166,16 +166,8 @@ export class TrackingService {
     ctx: IDBConfigOptions,
     payload?: Record<string, unknown>,
   ): Promise<IActivityEventEntity> {
-    return this.emit(
-      {
-        subjectType: 'initiative',
-        subjectId: initiativeId,
-        type: 'completed',
-        actorPersonId: actorId,
-        payload,
-      },
-      ctx,
-    );
+    await this.assertValidTransition('initiative', initiativeId, 'completed', ctx);
+    return this.emit({ subjectType: 'initiative', subjectId: initiativeId, type: 'completed', actorPersonId: actorId, payload }, ctx);
   }
 
   async cancel(
@@ -184,16 +176,8 @@ export class TrackingService {
     ctx: IDBConfigOptions,
     payload?: Record<string, unknown>,
   ): Promise<IActivityEventEntity> {
-    return this.emit(
-      {
-        subjectType: 'initiative',
-        subjectId: initiativeId,
-        type: 'cancelled',
-        actorPersonId: actorId,
-        payload,
-      },
-      ctx,
-    );
+    await this.assertValidTransition('initiative', initiativeId, 'cancelled', ctx);
+    return this.emit({ subjectType: 'initiative', subjectId: initiativeId, type: 'cancelled', actorPersonId: actorId, payload }, ctx);
   }
 
   async logTime(
@@ -203,13 +187,7 @@ export class TrackingService {
     ctx: IDBConfigOptions,
   ): Promise<IActivityEventEntity> {
     return this.emit(
-      {
-        subjectType: 'initiative',
-        subjectId: initiativeId,
-        type: 'time_logged',
-        actorPersonId: actorId,
-        payload: { minutes },
-      },
+      { subjectType: 'initiative', subjectId: initiativeId, type: 'time_logged', actorPersonId: actorId, payload: { minutes } },
       ctx,
     );
   }
@@ -240,7 +218,7 @@ export class TrackingService {
   }
 
   async recordReason(
-    subjectType: 'initiative' | 'key_result' | 'objective',
+    subjectType: 'initiative',
     subjectId: number,
     actorId: number,
     { reason, reasonClass }: { reason: string; reasonClass?: string },

@@ -1,17 +1,18 @@
-import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ALIGNABLE_TYPES, AlignableType } from './alignment.constants';
 
 export class LinkDTO {
-  @IsString()
-  fromType!: string;
+  @IsIn([...ALIGNABLE_TYPES])
+  fromType!: AlignableType;
 
   @IsInt()
   @Min(1)
   @Type(() => Number)
   fromId!: number;
 
-  @IsString()
-  toType!: string;
+  @IsIn([...ALIGNABLE_TYPES])
+  toType!: AlignableType;
 
   @IsInt()
   @Min(1)

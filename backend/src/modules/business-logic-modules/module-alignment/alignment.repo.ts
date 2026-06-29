@@ -5,6 +5,7 @@ import { runQuery } from 'src/infra/application-db/query-runner';
 import { alignmentLink } from 'src/infra/application-db/schema/okr.schema';
 import { IDBConfigOptions } from '../../../infra/application-db/application-db.module';
 import { IAlignmentLinkEntity, INewAlignmentLink } from './alignment.interface';
+import { AlignableType } from './alignment.constants';
 
 @Injectable()
 export class AlignmentRepository {
@@ -47,7 +48,7 @@ export class AlignmentRepository {
    * the nodes that point UP to this parent (i.e. children aligned to parent).
    */
   async findChildren(
-    toType: string,
+    toType: AlignableType,
     toId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IAlignmentLinkEntity[]> {
@@ -67,7 +68,7 @@ export class AlignmentRepository {
   }
 
   async findParents(
-    fromType: string,
+    fromType: AlignableType,
     fromId: number,
     tenancyInfo: IDBConfigOptions,
   ): Promise<IAlignmentLinkEntity[]> {

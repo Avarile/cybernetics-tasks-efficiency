@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   decimal,
   index,
@@ -6,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
 import { defaultFields } from './common.schema';
@@ -50,6 +52,15 @@ export const interventionStatus = pgEnum('intervention_status', [
   'active',
   'measuring',
   'concluded',
+]);
+
+// Entity kinds that can be endpoints of an alignment edge. Closed domain — an
+// enum (not free-form varchar) so the DB enforces edge-type integrity and the
+// set stays consistent with tracking's `subject_type`. Extend with
+// `ALTER TYPE alignable_type ADD VALUE ...` when a new linkable kind is added.
+export const alignableType = pgEnum('alignable_type', [
+  'objective',
+  'key_result',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -121,10 +132,9 @@ export const initiativeKeyResult = pgTable(
 export const alignmentLink = pgTable(
   'alignment_link',
   {
-    // plain varchar — 'objective' | 'key_result'; intentionally not an enum
-    fromType: varchar('from_type', { length: 50 }).notNull(),
+    fromType: alignableType('from_type').notNull(),
     fromId: integer('from_id').notNull(),
-    toType: varchar('to_type', { length: 50 }).notNull(),
+    toType: alignableType('to_type').notNull(),
     toId: integer('to_id').notNull(),
     weight: decimal('weight', { precision: 6, scale: 2 }).default('1.00'),
     ...defaultFields,
@@ -132,6 +142,11 @@ export const alignmentLink = pgTable(
   (t) => [
     index('alignment_link_from_index').on(t.fromType, t.fromId),
     index('alignment_link_to_index').on(t.toType, t.toId),
+    // No duplicate live edge between the same two endpoints. Partial on
+    // is_deleted = false so a soft-deleted edge can be re-created later.
+    uniqueIndex('alignment_link_unique_edge')
+      .on(t.fromType, t.fromId, t.toType, t.toId)
+      .where(sql`${t.isDeleted} = false`),
   ],
 );
 

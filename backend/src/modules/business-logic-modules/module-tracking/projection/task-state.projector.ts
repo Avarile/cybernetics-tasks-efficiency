@@ -85,6 +85,7 @@ export class TaskStateProjector {
           executor,
         );
         await this.taskRepo.updateStatus(event.subjectId, 'completed', ctx, executor);
+        await this.taskRepo.updateCompletedAt(event.subjectId, event.occurredAt, ctx, executor);
         break;
 
       case 'cancelled':
@@ -98,19 +99,8 @@ export class TaskStateProjector {
         break;
 
       case 'time_logged': {
-        const current = await this.repo.findByTaskId(
-          event.subjectId,
-          ctx,
-          executor,
-        );
-        const existing = current?.totalTimeLoggedMinutes ?? 0;
         const added = Number(event.payload?.minutes ?? 0);
-        await this.repo.upsert(
-          event.subjectId,
-          { totalTimeLoggedMinutes: existing + added, ...baseFields },
-          ctx,
-          executor,
-        );
+        await this.repo.addTime(event.subjectId, added, event.occurredAt, ctx, executor);
         break;
       }
 

@@ -1,0 +1,661 @@
+# Cybernetic — Business-Logic Modules: Design & Logic Report
+
+> Scope: `backend/src/modules/business-logic-modules/`
+> Companion infra: `backend/src/infra/application-db/schema/`, `backend/src/common/casl/`, `backend/src/utils/shared/`
+> This is the canonical merged report. It folds in the `alignment_link` fix (formerly
+> `structure-fix-version1`), adds a per-sub-module logic reference (§10), and a ranked
+> issues/bugs register found during full analysis (§11).
+
+---
+
+## 1. The big picture — what this system *is*
+
+Cybernetic is an **OKR + execution-tracking engine**. The 14 modules under
+`business-logic-modules/` divide into four conceptual layers that build on each other:
+
+```
+┌─ IDENTITY / ORG STRUCTURE ─────────────────────────────┐
+│  Organization → Department → Team → Person             │  WHO does the work
+└────────────────────────────────────────────────────────┘
+            │ owns / is scoped to
+            ▼
+┌─ OKR / STRATEGY ───────────────────────────────────────┐
+│  Objective → KeyResult        Initiative               │  WHAT we aim for
+│         └──── Alignment (graph links objectives) ──┘    │
+└────────────────────────────────────────────────────────┘
+            │ initiatives are executed via
+            ▼
+┌─ EXECUTION ────────────────────────────────────────────┐
+│  Task (sub-tasks, assignees) + Label                   │  HOW work gets done
+└────────────────────────────────────────────────────────┘
+            │ every state change flows through
+            ▼
+┌─ TELEMETRY / LEARNING ─────────────────────────────────┐
+│  Tracking (event log + projections)  Intervention      │  WHAT actually happened
+└────────────────────────────────────────────────────────┘
+```
+
+The unifying design thesis: **strategy (OKR) and execution (tasks) are separate
+concerns wired together by an append-only event log.** The static modules describe
+*intent*; the tracking module records *reality*; projections reconcile the two.
+
+---
+
+## 2. The shared skeleton — why every module looks the same
+
+Every business module is a 6-file NestJS unit:
+
+| File | Responsibility |
+|------|---------------|
+| `*.interface.ts` | Domain types: `IXProfile`, `INewX`, `IUpdateX`, `IQueryXParams`, `IXEntity` |
+| `*.dto.ts` | HTTP-boundary validation (class-validator) |
+| `*.repo.ts` | Drizzle data access — the *only* layer that touches SQL |
+| `*.service.ts` | Business rules + authorization |
+| `*.controller.ts` | HTTP routing, extracts session → tenancy context |
+| `*.module.ts` | DI wiring |
+
+**Why this rigid uniformity:** the codebase follows a deliberate convention (following
+the `ai-agent-cluster/backend` NestJS + Drizzle pattern). The payoff is that every
+entity is learnable once and predictable everywhere, and cross-module imports are safe
+because each module exposes its repo for others to consume.
+
+### Three shared primitives that explain the "why" behind almost every method signature
+
+**(a) `DefaultFields` / soft-delete (`common.schema.ts`)** — every table gets `id`
+(internal serial PK), `slug` (public UUID), timestamps, and
+`isDeleted`/`isActive`/`deletedAt`.
+
+- *Why two identifiers:* internal `id` is used for fast FK joins; the `slug` UUID is
+  what's exposed over HTTP so you never leak row counts or allow ID enumeration.
+  Controllers resolve `:slug` → entity, then pass `entity.id` inward.
+- *Why soft-delete:* this is an analytics/learning product — destroying history would
+  defeat the purpose. The lone exception is `activity_event`, which is append-only and
+  has *no* soft-delete columns at all.
+
+**(b) `IDBConfigOptions ctx` threaded through every call** — produced by
+`DbContextService.forUser(userId)`. It carries `{ database_uri, schema_id, user_id }`.
+
+- *Why thread it everywhere instead of a global:* this is the **multi-tenancy +
+  row-level-security seam.** Every repo call runs scoped to a company schema and an
+  acting user. `system()` (user_id 0) exists for trusted internal operations. This is
+  why no service method is "context-free."
+
+**(c) CASL authorization (`assertAbility`)** — services that mutate take an
+`ability: AppAbility` and call `assertAbility(ability, 'update', 'Task', entity, ...)`
+*after* loading the row but *before* writing.
+
+- *Why authorize in the service, not just a guard:* many checks are **row-level**
+  ("can you edit *this* initiative"), which requires the loaded entity. Controllers do
+  coarse `@CheckPolicies` (can you create *any* ActivityEvent); services do
+  fine-grained per-row checks. **Caveat:** this discipline is applied unevenly — see
+  §11 (issues #1, #2, #8). The role matrix lives in `casl/ability.factory.ts`:
+
+  | Role | Effective ability |
+  |------|-------------------|
+  | `admin` | `manage all` — owns org structure and everything else |
+  | `executive` | `read all` — read-only across the product |
+  | `manager` | `read all`; `manage` KeyResult/Initiative/Task/Label/AlignmentLink; `manage` Objective they own or scoped to their team; `manage` Intervention they decided; `create` ActivityEvent as themselves |
+  | `member` | `read` OKR/org entities; `manage` Initiative they own and Task they created; `create`/`read` their own ActivityEvents; `update` their own Person row |
+
+---
+
+## 3. Layer 1 — Identity & Org Structure
+
+**Modules: `organization`, `department`, `team`, `person`**
+
+A classic nested hierarchy:
+
+- `organization` — top-level tenant container (name + description only).
+- `department` — has `parentId` (self-FK → **nested departments**) and `leadPersonId`.
+- `team` — belongs to a department (`departmentId` required), optional `leadPersonId`.
+- `person` — the user/actor. Carries `role` (`admin | manager | member | executive`),
+  optional `departmentId`/`teamId`, and `passwordHash`.
+
+**Design logic:**
+
+- **Person is the join point between auth and business logic.** Its `passwordHash`
+  lives here and the `role` column is the seed for the entire CASL ability tree. The
+  `auth` module authenticates; `person` is the identity of record. `person.repo`
+  defends the credential: it derives `safePersonColumns` by stripping `passwordHash`
+  from `getTableColumns(person)` and uses it for *every* select/returning, so the hash
+  never leaves the repo. (Good practice — keep it.)
+- **Self-referential departments** allow arbitrarily deep org charts without schema
+  changes.
+- These four are deliberately "thin" CRUD — they're the *dimensions* everything else is
+  sliced by (who owns an objective, who's assigned a task). They carry almost no
+  behavior because their job is to *be referenced*, not to *do* things.
+- **Authorization is coarse-only here, by design.** The org-structure services do not
+  call `assertAbility`; mutation is gated entirely by controller `@CheckPolicies`. This
+  is *acceptable* because org structure has no per-row ownership nuance — the CASL rules
+  are entity-level (only `admin` has `manage`), so a coarse `can('update','Department')`
+  fully expresses the rule.
+
+---
+
+## 4. Layer 2 — OKR / Strategy
+
+**Modules: `objective`, `key-result`, `initiative`, `alignment`**
+
+### Objective — the aspirational goal
+
+`title`, `ownerPersonId`, `period`, and crucially **`scope` (`org | department | team`)
++ `scopeRefId`**.
+
+- *Why scope+refId instead of separate FK columns:* one polymorphic pointer lets an
+  objective belong to the org, a department, or a team without three nullable foreign
+  keys. `status` runs `draft → active → completed → archived`.
+- `ObjectiveService` gates `update`/`remove` with row-level `assertAbility`
+  (`update`/`delete` `Objective`). `findByScope(scope, scopeRefId)` powers scoped
+  rollups. **Gap:** `create` does not validate that `scopeRefId` actually references a
+  live row of the declared `scope` (the same polymorphic-integrity hole alignment had —
+  see §11 #5).
+
+### KeyResult — the measurable target
+
+Belongs to an objective. Carries `metricType` (`number | percent | currency |
+boolean`), `direction` (`increase | decrease`), and `startValue / targetValue /
+currentValue` as **decimals**.
+
+- *Why decimal-as-string:* financial/precise metrics; Postgres `decimal(20,4)` avoids
+  float drift. The `direction` field is what makes progress math work for *both* "grow
+  revenue" and "reduce churn."
+- `updateCurrentValue` is the seam the tracking module writes through during a
+  measurement. **Note:** `KeyResultService` mutations (`create`, `update`,
+  `updateCurrentValue`, `remove`) carry **no** row-level `assertAbility` — they rely
+  entirely on the controller's coarse `can(..,'KeyResult')`. Because only `manager`/
+  `admin` get write ability on KeyResult, this is *not* a privilege escalation, but it
+  is an asymmetry vs. Objective/Initiative/Task (§11 #8).
+
+### Initiative — the unit of work that moves KRs
+
+`title`, `ownerPersonId`, `priority`, `dueDate`, and a **denormalized `status`** cache.
+Links to KRs via the `initiative_key_result` join table.
+
+- *Why a denormalized status with a comment "authoritative status is the tracking
+  projection":* this is the central architectural tension of the system — see §6. The
+  initiative table holds a *cache* so simple list queries are fast; the *truth* lives in
+  the event-sourced projection.
+- `InitiativeService` gates `update`/`remove` row-level. `linkKeyResult` dedups via
+  select-then-insert (no DB unique constraint → racy; §11 #6) and does not verify the
+  KR exists (§11 #5).
+
+### Alignment — the OKR graph
+
+A separate module holding `alignment_link` rows:
+`{ fromType, fromId, toType, toId, weight }`.
+
+- *Why a generic edge table instead of FKs on objectives:* OKRs form a **directed
+  graph**, not a tree — an objective can ladder up to multiple parents with a `weight`.
+- **Edge-type integrity (resolved — was the §9 caveat).** `fromType`/`toType` are now a
+  dedicated Postgres enum `alignable_type` (`'objective' | 'key_result'`), not free-form
+  `varchar`. This matches the precedent set by tracking's `subject_type` enum and lets
+  the DB reject typo'd/invalid edge kinds. The TS union `AlignableType` is derived from
+  `alignableType.enumValues` (`alignment.constants.ts`) so code and DB cannot drift;
+  `@IsIn([...ALIGNABLE_TYPES])` enforces it at the HTTP boundary. New linkable kinds are
+  added with `ALTER TYPE alignable_type ADD VALUE …` — the additive flexibility the
+  varchar was protecting, without the integrity loss. (Migration `0005`.)
+- **Write-path guards (added with the fix).** `AlignmentService.link` now rejects
+  self-links, verifies *both* endpoints reference a live row of the declared type
+  (`objectiveRepo`/`keyResultRepo`), and rejects duplicate live edges. A **partial
+  unique index** `alignment_link_unique_edge` on `(from_type, from_id, to_type, to_id)
+  WHERE is_deleted = false` enforces no-duplicate at the DB level too.
+- `OkrTreeService` is the brain here. Two notable pieces of real logic (rare in this
+  otherwise-CRUD codebase):
+  - **`computeKrProgress`** — pure, direction-aware progress %. Handles the degenerate
+    `target == start` case explicitly (complete iff current already meets target) and
+    clamps to [0,1] with a NaN guard. The pace heuristic is honestly commented as a
+    **placeholder** because `period` is a label string (`"2024-Q1"`), not a date range —
+    a known limitation, not an oversight.
+  - **`buildTree`** — recursive graph walk with a **`visited` Set cycle guard** (A→B→A
+    returns a leaf instead of looping forever). It calls `findChildren('objective', id)`
+    (rows whose `to_*` side is this objective) and recurses only into rows whose
+    `fromType === 'objective'` — that test is **load-bearing**, not redundant: a child
+    can legitimately be an `objective` (ladder) or a `key_result` (alignment), and only
+    child objectives form the recursive tree.
+
+---
+
+## 5. Layer 3 — Execution
+
+**Modules: `task`, `label`**
+
+### Task — Plane-inspired execution layer *under* initiatives
+
+`initiativeId` (every task ladders up to an OKR initiative), `parentId` (self-FK →
+**sub-tasks**), `priority`, dates, `createdByPersonId`, and a denormalized `status`.
+Plus:
+
+- **`sequenceId`** — an org-wide human-friendly number assigned by a Postgres sequence
+  (`nextval('task_sequence_seq')`), rendered as `TASK-123` by
+  `task.util.ts#buildTaskKey` (composed from `env.TASK_KEY_PREFIX`, never stored). *Why
+  DB-side default:* guarantees gapless, race-free numbering across concurrent inserts;
+  the app omits it on insert. Enforced unique via `task_sequence_index`.
+- **`sortOrder`** as `doublePrecision` defaulting to 65535 — *why float:* lets you
+  drag-and-drop a card between two others by averaging their orders, no full reindex.
+- **Multi-assignee** via `task_assignee` join table (not a single FK) — tasks are
+  collaborative.
+- **`taskState` projection** mirrors initiative's pattern (see §6).
+- **Status is write-protected from direct edits.** `TaskRepository.update` strips
+  `status` (and `sequenceId`, `slug`, timestamps) from the patch, so the only way to
+  change task status is through the tracking projector. This is what keeps the dual-write
+  cache honest (§6).
+
+`TaskService` is the most authorization-heavy service: it exposes
+`requireBySlugAuthorized`, `requireBySlugForWrite`, `requireByIdAuthorized` —
+separating "can read" from "can write" row-level gates because tasks are the most
+frequently and broadly accessed entity. **But** the lifecycle (start/complete/…) is
+driven through the *tracking* controller, which does **not** apply these row-level gates
+(§11 #1) — a significant gap.
+
+### Label — taxonomy for tasks
+
+Self-referential (`parentId` → label hierarchy), `color`, `sortOrder`. Linked to tasks
+via `task_label`. A small CRUD module (coarse-gated only; no row-level `assertAbility`)
+whose only job is flexible categorization. Both `task_assignee` and `task_label` are
+classic many-to-many join tables, keeping Task itself clean — though neither has a DB
+unique constraint (§11 #6).
+
+---
+
+## 6. Layer 4 — Tracking: the architectural centerpiece
+
+**Module: `tracking`** — this is where the system stops being CRUD and becomes
+*event-sourced*.
+
+### The core idea
+
+Initiatives and tasks **do not change status by direct UPDATE.** Instead, every
+meaningful action emits an immutable **`activity_event`** (append-only: `created,
+started, paused, resumed, blocked, unblocked, completed, cancelled, time_logged,
+reason_recorded, outcome_recorded, note_added, key_result_measured`). Current status is
+*derived* by projecting those events.
+
+### `activity_event` table design
+
+- Append-only, no soft-delete (the log is sacred).
+- Polymorphic `subjectType` (a `subject_type` **enum**: `initiative | key_result |
+  objective | task`) + `subjectId` — one log for all entity types.
+- `source` (`human | agent | integration`) + `confidence` + `rawInputId` — **this is the
+  AI hook.** Events can come from humans, agents, or integrations, each with a confidence
+  score and a pointer back to the `raw_input` that produced them. `correlationId` ties
+  related events together.
+- Indexes tell the access story: `brin` on `occurredAt` (time-series scans), `gin` on
+  `payload` (query inside JSON), composite on `(subjectType, subjectId)` (timeline
+  lookups).
+
+### The transactional projection pattern — the single most important design decision
+
+`TrackingService.appendAndProject` does, **on one transactional connection** (via
+`dbProvider.withTenantTransaction`):
+
+1. `activityEvents.append(event)` — write the log
+2. `initiativeStateProjector.apply(event)` — update `initiative_state` read model
+3. `taskStateProjector.apply(event)` — update `task_state` read model
+
+Each projector early-returns unless `event.subjectType` matches its entity, so applying
+both is cheap and safe. The projectors carry a pointed comment: they are *deliberately
+NOT* `@OnEvent` listeners, because that ran on a separate connection and **broke
+atomicity.**
+
+- *Why this matters:* the event log and the read model **commit together or not at all**
+  — they can never diverge. Event sourcing's classic weakness (eventual-consistency
+  drift between log and projection) is engineered away by making projection synchronous
+  and transactional.
+- **After** commit, `notify()` fires an `EventEmitter2` event (`ACTIVITY_EVENT_EMITTED`)
+  for *non-critical* decoupled listeners. The split is principled: **correctness is
+  synchronous + transactional; side-effects are async + best-effort.**
+
+### Why two status columns everywhere (the denormalization)
+
+Both `initiative.status` and `task.status` are commented "denormalized convenience cache
+— authoritative status is the projection." The `TaskStateProjector` updates *both*
+`task_state` (the projection, via `TaskStateRepository.upsert` with
+`onConflictDoUpdate`) *and* `task.status` (the cache, via `TaskRepository.updateStatus`)
+in the same transaction. The `InitiativeStateProjector` updates `initiative_state` only
+(the `initiative.status` cache is written elsewhere/initial-only — see §11 #9 note).
+
+- *Why keep the cache at all:* so OKR roll-ups (`countByInitiative`) and status-filtered
+  list queries read "honest data without requiring a join on task_state." It's a
+  performance optimization that stays correct precisely because both are written
+  atomically.
+
+### KeyResult measurement — the richest flow
+
+`measureKeyResult` in one transaction: appends the `key_result_measured` event →
+projects it (no-op for status, both projectors skip non-matching subjects) → inserts a
+`key_result_measurement` time-series row (`measurements.add`) → updates
+`key_result.currentValue` (`keyResults.updateCurrentValue`). So a single measurement
+simultaneously: logs *that* it happened, feeds the historical series (for trend charts),
+and updates the live value the OKR tree reads for progress %. This closes the loop
+between Layer 4 (telemetry) and Layer 2 (strategy).
+
+### Status transition map (as implemented by the projectors)
+
+| Event | Resulting status | Side effects |
+|-------|------------------|--------------|
+| `started` | `in_progress` | — |
+| `resumed` / `unblocked` | `in_progress` | clears `blockedSince` |
+| `paused` | `paused` | — |
+| `blocked` | `blocked` | sets `blockedSince = occurredAt` |
+| `completed` | `completed` | — (does **not** set `completedAt`; §11 #9) |
+| `cancelled` | `cancelled` | — |
+| `time_logged` | unchanged | `totalTimeLoggedMinutes += payload.minutes` (read-modify-write; §11 #4) |
+| others (`created`/`reason_recorded`/…) | unchanged | bumps `lastEventAt` only |
+
+> The projectors apply *any* event to *any* current state — there is **no transition
+> validation** (§11 #3).
+
+---
+
+## 7. Intervention — the experimentation / learning layer
+
+**Module: `intervention`**
+
+`title`, `decidedByPersonId`, `startedAt`, `scope`, **`hypothesis`**,
+**`measurementWindowDays`** (default 14), and `status` (`planned → active → measuring →
+concluded`). Links to KRs via `intervention_key_result`.
+
+**Design logic:** an Intervention is a **deliberate management action with a falsifiable
+hypothesis** ("if we do X, KR Y will improve within 14 days"). It links to the key
+results it's expected to affect (`findAffectedKeyResultIds`), and its lifecycle
+(`measuring` → `concluded`) is meant to be evaluated against the
+`key_result_measurement` series the tracking module accumulates. This is the cybernetic
+feedback loop the product is named for: **decide → act → measure → conclude.**
+`InterventionService` gates `update`/`remove` row-level (`manage Intervention {
+decidedByPersonId }` for managers). It's currently structural (CRUD + links); the
+analytical payoff (correlating window vs. measurements) isn't implemented yet, and
+`status` is a free CRUD field with no transition enforcement.
+
+---
+
+## 8. How the modules combine — three end-to-end flows
+
+**Flow A — Define strategy:**
+`Objective` created (scoped to a team) → `KeyResult`s attached → `Alignment` links
+ladder this objective up to a department/org objective → `OkrTreeService.buildTree`
+renders the whole cascade with live progress %.
+
+**Flow B — Execute and track:**
+`Initiative` created and linked to KRs → `Task`s (with sub-tasks, assignees, labels)
+created under it → user hits `POST /tracking/tasks/:slug/start` → `TrackingService`
+appends a `started` event, projects it to `task_state` + `task.status` atomically →
+`POST /tracking/tasks/:slug/time` accumulates `totalTimeLoggedMinutes` → timeline
+endpoint replays the full event history.
+
+**Flow C — Close the loop:**
+A KR is lagging → `Intervention` created with a hypothesis, linked to that KR → over the
+measurement window, `POST /tracking/key-results/:slug/measure` writes measurements →
+`key_result.currentValue` updates → `OkrTreeService` recomputes progress → intervention
+concluded against observed movement.
+
+The connective tissue is consistent: **controllers resolve `slug`→entity under a tenancy
+context, check coarse policy; services apply row-level CASL and business rules; repos do
+tenant-scoped SQL; the tracking event log is the spine that records every transition
+immutably.**
+
+---
+
+## 9. Design strengths & honest caveats
+
+**Strengths**
+
+- Clean strategy/execution separation joined by a generic event log.
+- Event sourcing done *safely* — synchronous transactional projections eliminate
+  log/read-model drift.
+- AI-native from the schema up (`source`, `confidence`, `raw_input`, `correlationId`).
+- Multi-tenancy is structural (every repo call is schema-scoped).
+- Credential hygiene: `passwordHash` never leaves `person.repo`.
+- Status is write-protected from direct edits on tasks (repo strips `status` from the
+  update patch), enforcing the event-sourced invariant.
+
+**Caveats baked into the current phase**
+
+- **Dual status columns** (cache + projection) are correct only because of disciplined
+  same-transaction writes — a future direct `UPDATE task SET status` outside the
+  projector would silently corrupt this invariant. It's the main thing to guard in
+  review.
+- **Pace/`period`** is a string label, so OKR pace status is an explicitly-placeholder
+  heuristic until periods carry real date ranges.
+- **Intervention** is structurally complete but its analytical evaluation isn't built.
+- **Authorization depth is uneven** and the tracking lifecycle is under-protected — see
+  §11 #1/#2/#8, the most important review items in this report.
+- **Referential integrity for cross-entity links is app-level at best** — the
+  `alignment_link` enum+guard fix should be templated to the other link points (§11 #5/#6).
+
+---
+
+## 10. Per-sub-module logic reference (what each module actually does)
+
+> Columns: **Endpoints** = HTTP surface (controller); **Service logic** = business rules
+> beyond passthrough; **Repo notes** = noteworthy SQL behavior; **Authz** = how it's
+> gated. "Passthrough CRUD" = service forwards to repo with existence check only.
+
+### organization
+- **Endpoints:** create / update / delete / search / get by id|slug|name.
+- **Service logic:** passthrough CRUD; `requireBy*` existence helpers.
+- **Repo notes:** standard soft-delete CRUD; `findByName` for uniqueness lookups.
+- **Authz:** coarse only (admin `manage`, others `read`). Acceptable (§3).
+
+### department
+- **Endpoints:** create / update / delete / search / roots / by-parent.
+- **Service logic:** `findRoots` (parentId null) + `findByParentId` build the nested
+  chart; otherwise passthrough.
+- **Repo notes:** self-FK `parentId`. **No cycle guard on re-parenting** (§11 #7).
+- **Authz:** coarse only.
+
+### team
+- **Endpoints:** create / update / delete / search / by-department.
+- **Service logic:** passthrough; `findByDepartmentId` for org rollups.
+- **Repo notes:** `departmentId` required but not existence-checked at write (§11 #5).
+- **Authz:** coarse only.
+
+### person
+- **Endpoints:** create / update / delete / search / get by id|slug|name.
+- **Service logic:** `update` is row-level authorized (`update Person`, members limited
+  to `{ id: user.id }`); `remove` is **not** row-level authorized (§11 #8).
+- **Repo notes:** **strips `passwordHash` from every read/returning** via
+  `safePersonColumns` — credential never escapes. (Strength.)
+- **Authz:** mixed (update row-level, remove coarse).
+
+### objective
+- **Endpoints:** create / update / delete / search / get by id|slug / by-owner / by-scope.
+- **Service logic:** `update`/`remove` row-level authorized; `findByScope(scope,
+  scopeRefId)` drives scoped rollups.
+- **Repo notes:** polymorphic `scope`+`scopeRefId`; **`scopeRefId` not validated against
+  `scope`** at create (§11 #5).
+- **Authz:** row-level on mutate.
+
+### key-result
+- **Endpoints:** create / update / update-value / delete / get / search / by-objective.
+- **Service logic:** `computeKrProgress` lives in `OkrTreeService`, not here; KR service
+  itself is passthrough. `updateCurrentValue` is the tracking write seam.
+- **Repo notes:** decimals as `decimal(20,4)` strings; `objectiveId` not existence-checked.
+- **Authz:** **coarse only** — no `assertAbility` on any mutation (§11 #8). Safe because
+  only managers/admins can write KRs, but asymmetric.
+
+### initiative
+- **Endpoints:** create / update / delete / search / queryAll / get / by-owner /
+  link-KR / unlink-KR / list-KR-ids.
+- **Service logic:** `update`/`remove` row-level authorized. Status is a denormalized
+  cache; the authoritative value is `initiative_state`.
+- **Repo notes:** `linkKeyResult` dedups in app code (racy, no DB unique — §11 #6); KR
+  existence not checked (§11 #5).
+- **Authz:** row-level on mutate.
+
+### alignment (incl. okr-tree)
+- **Endpoints:** `GET okr/tree/:objectiveSlug`, `POST alignment/link`, `POST alignment/unlink`.
+- **Service logic:** `link` validates self-link, endpoint existence/liveness, and
+  duplicates (added in the fix). `OkrTreeService.buildTree` recursively renders the graph
+  with cycle guard; `computeKrProgress` is direction-aware with degenerate-case handling.
+- **Repo notes:** `alignable_type` enum on `from_type`/`to_type`; partial unique index on
+  the edge tuple; `findChildren`/`findParents` filter soft-deleted.
+- **Authz:** coarse (`AlignmentLink`). No row-level (edges have no per-row owner).
+
+### task (incl. task.util)
+- **Endpoints:** create / search / summary / get by id|slug / update / delete /
+  assignees add+remove / labels add+remove.
+- **Service logic:** richest authorization surface — `requireBySlugForWrite`,
+  `requireBySlugAuthorized`, `requireByIdAuthorized` separate read vs write row-level
+  gates; `summary` → `countByInitiative` rollup. `buildTaskKey` renders `TASK-<seq>`.
+- **Repo notes:** insert omits `sequenceId` (DB sequence assigns it); `update` strips
+  `status`/`sequenceId`/identity fields; assignee/label links dedup in app (racy, §11 #6);
+  `parentId`/`initiativeId`/`personId`/`labelId` not existence-checked (§11 #5);
+  re-parenting has no cycle guard (§11 #7).
+- **Authz:** row-level on direct edits — **but bypassed by the tracking lifecycle (§11 #1).**
+
+### label
+- **Endpoints:** create / update / delete / queryAll (+ get by id).
+- **Service logic:** passthrough CRUD with existence check.
+- **Repo notes:** self-FK `parentId` label hierarchy; no cycle guard.
+- **Authz:** coarse only.
+
+### tracking (incl. projection/*)
+- **Endpoints (`/tracking`):** initiative lifecycle (start/pause/resume/block/unblock/
+  complete/cancel), `time`, `reason`, `outcome`, `timeline`; task lifecycle (same set),
+  `time`, `timeline`; `key-results/:slug/measure`.
+- **Service logic:** `appendAndProject` (atomic append + dual projection),
+  `measureKeyResult` (append + project + measurement row + currentValue), `emit`/
+  `emitLifecycle` wrappers, post-commit `notify`.
+- **Repo notes:** `activity_event` append-only; `listBySubject` returns the full ordered
+  timeline (no actor filtering — §11 #2); projectors upsert state read-models.
+- **Authz:** **coarse `create/read ActivityEvent` only — no row-level subject check
+  (§11 #1/#2).**
+
+### intervention
+- **Endpoints:** create / update / delete / get / search / link-KR / unlink-KR / list-affected-KR.
+- **Service logic:** `update`/`remove` row-level authorized; `findAffectedKeyResultIds`
+  for future window-vs-measurement analysis.
+- **Repo notes:** `linkKeyResult` dedups in app (racy, §11 #6); KR existence unchecked.
+- **Authz:** row-level on mutate; `status` is free CRUD (no transition enforcement).
+
+---
+
+## 11. Issues & logic bugs found (ranked)
+
+> Severity reflects security/correctness impact in the current code. Each item cites the
+> source so it's actionable.
+
+| # | Severity | Issue | Where |
+|---|----------|-------|-------|
+| 1 | **High** | Tracking lifecycle has no row-level authz | `tracking.controller.ts` (all lifecycle routes) |
+| 2 | **High** | Member ActivityEvent read scope not enforced on timelines | `tracking.controller.ts` `getTimeline`/`getTaskTimeline`, `activity-event.repo.ts` `listBySubject` |
+| 3 | **Medium** | No lifecycle state-machine validation | `projection/*-state.projector.ts` |
+| 4 | **Medium** | `time_logged` lost-update race | both projectors, `time_logged` case |
+| 5 | **Medium** | Missing referential-integrity on cross-entity links | task/initiative/intervention/objective repos & services |
+| 6 | **Medium** | Join tables lack DB unique constraints (racy app-level dedup) | `task_assignee`, `task_label`, `initiative_key_result`, `intervention_key_result` |
+| 7 | **Low-Med** | Sub-task / department re-parenting has no cycle guard | `task.repo.update`, `department` |
+| 8 | **Low** | Uneven authorization depth across services | key-result, label, person.remove |
+| 9 | **Low** | `task.completedAt` column never written | `task.schema.ts` vs `task.repo.updateStatus` / projector |
+| 10 | **Low** | `task` reuses `initiative_status` enum (coupled domains) | `task.schema.ts` |
+| 11 | **Low** | `recordReason` supports objective/key_result but no endpoint wires them | `tracking.service.ts` vs `tracking.controller.ts` |
+
+### Detail
+
+**#1 — Tracking lifecycle endpoints lack row-level authorization (High).**
+Every lifecycle route (`POST /tracking/initiatives/:slug/complete`,
+`/tracking/tasks/:slug/cancel`, `…/start`, `…/time`, `…/measure`, …) is gated *only* by
+the coarse `@CheckPolicies((a) => a.can('create', 'ActivityEvent'))`. The controller
+resolves the subject (`resolveTask`/`resolveInitiative`) but never asserts row-level
+`update` on it. Meanwhile `TaskController.update`/`InitiativeController` *do* enforce
+row-level ownership. Net effect: a `member` (who may only `manage Task {
+createdByPersonId: self }` directly) can **start, complete, cancel, or log time on any
+task or initiative in the tenant** through the tracking endpoints — and because status is
+authoritative via the projection, this actually changes others' work state. **Fix:** in
+each lifecycle handler, load the subject and `assertAbility(ability, 'update',
+'Task'|'Initiative', subject)` before emitting (mirror `requireBySlugForWrite`).
+
+**#2 — Member ActivityEvent read scope not enforced (High/medium).**
+CASL grants `member` `read ActivityEvent { actorPersonId: user.id }` (own events only),
+but the timeline endpoints use coarse `can('read','ActivityEvent')` and
+`listBySubject` returns *all* events for the subject regardless of author. So a member
+can read everyone's events on any initiative/task they can see. Either the CASL rule is
+too strict or the endpoint must filter — they currently contradict. **Fix:** decide the
+intent; if timelines are meant to be shared, broaden the CASL rule; if not, filter
+`listBySubject` by `actorPersonId` for non-privileged roles.
+
+**#3 — No lifecycle state-machine validation (Medium).**
+The projectors apply any event to any current state with a blind `switch`. There is no
+guard rejecting illegal transitions, so `complete` on a `cancelled` task, `start` on a
+`completed` one, or `block` on `not_started` all "succeed" and overwrite the derived
+status. The event log records nonsense as fact. **Fix:** validate the current
+projected status against an allowed-transition table before appending (in
+`TrackingService`, inside the transaction), throwing on illegal transitions.
+
+**#4 — `time_logged` lost-update race (Medium).**
+Both projectors do `const existing = (read total); upsert(total = existing + added)` —
+a non-atomic read-modify-write using a plain `SELECT` (no `FOR UPDATE`, no SQL-side
+increment). Two concurrent time logs on the same subject at READ COMMITTED can both read
+the same `existing` and one increment is lost. **Fix:** push the addition into SQL
+(`set total_time_logged_minutes = total_time_logged_minutes + :added`) or lock the row.
+
+**#5 — Missing referential-integrity on cross-entity links (Medium).**
+The `alignment_link` fix added endpoint existence/liveness checks; the same hole remains
+elsewhere, all writing bare integers with no FK and no existence check:
+`task.create` (`initiativeId`, `parentId`), `task.linkAssignee` (`personId`),
+`task.addLabel` (`labelId`), `initiative.linkKeyResult` / `intervention.linkKeyResult`
+(`keyResultId`), and `objective.create` (`scopeRefId` not matched to `scope`). A
+client can attach a task to a non-existent initiative, assign a ghost person, or scope an
+objective to a team that doesn't exist. **Fix:** template the alignment guard
+(`assertEndpointExists`) onto these write paths; for `objective` validate `scopeRefId`
+against the `scope`'s table.
+
+**#6 — Join tables lack DB unique constraints (Medium).**
+`task_assignee`, `task_label`, `initiative_key_result`, `intervention_key_result` enforce
+idempotency only via select-then-insert in app code; two concurrent calls can both pass
+the check and double-insert. **Fix:** add partial unique indexes (filtered to
+`is_deleted = false`) like the one added for `alignment_link`, and drop the app-level
+pre-check (or keep it as a fast path).
+
+**#7 — Re-parenting has no cycle guard (Low-Med).**
+`task.repo.update` and `department.update` let `parentId` be set to any value with no
+ancestor-walk check, so a node can become its own ancestor. `alignment` defends against
+this at read time (`buildTree` visited set); task/department traversals (`findChildren`)
+have no such guard, so a future recursive task/department tree builder could infinite-
+loop. **Fix:** reject a `parentId` that is the node itself or one of its descendants on
+update; add a visited-set guard to any recursive traversal.
+
+**#8 — Uneven authorization depth (Low).**
+`KeyResult` (all mutations), `Label` (all), and `person.remove` have no row-level
+`assertAbility`, relying on coarse controller policy, whereas Objective/Initiative/Task/
+Intervention/`person.update` enforce row-level. Not currently exploitable (the coarse
+rules happen to restrict writers appropriately) but inconsistent and easy to regress.
+**Fix:** either document the intentional asymmetry or add symmetric row-level checks.
+
+**#9 — `task.completedAt` never written (Low).**
+The `task` table has a `completed_at` column, but neither `TaskRepository.updateStatus`
+nor the projector ever set it on a `completed` event. The column is dead. **Fix:** set
+`completedAt = event.occurredAt` when projecting `completed` (and clear on re-open), or
+remove the column.
+
+**#10 — `task` reuses `initiative_status` enum (Low).**
+`task.status` and `task_state.status` use `initiativeStatus`
+(`not_started…cancelled`) rather than a dedicated `task_status`. Values happen to match,
+but the domains are coupled — an initiative-only status added later would silently become
+assignable to tasks. **Fix (optional):** introduce a dedicated `task_status` enum (mirror
+of the alignment dedicated-enum decision).
+
+**#11 — `recordReason` capability partially unreachable (Low).**
+`TrackingService.recordReason` accepts `initiative | key_result | objective`, but only
+the initiative reason endpoint is wired in the controller; objective/key_result reasons
+can't be recorded over HTTP. Harmless dead capability. **Fix:** add endpoints or narrow
+the signature to match the surface.
+
+---
+
+## Appendix — Module → table → key-collaborators map
+
+| Module | Primary table(s) | Join / aux tables | Notable collaborators |
+|--------|------------------|-------------------|-----------------------|
+| organization | `organization` | — | tenant root |
+| department | `department` (self-FK) | — | person, team |
+| team | `team` | — | department, person |
+| person | `person` | — | auth, CASL role source |
+| objective | `objective` | — | key-result, alignment |
+| key-result | `key_result` | `initiative_key_result`, `intervention_key_result` | tracking measurement |
+| initiative | `initiative` (+ cached `status`) | `initiative_key_result` | tracking projection |
+| alignment | `alignment_link` (graph edges, `alignable_type` enum) | — | `OkrTreeService`, objective, key-result |
+| task | `task` (self-FK, `sequenceId`) | `task_assignee`, `task_label` | initiative, label, tracking |
+| label | `label` (self-FK) | `task_label` | task |
+| tracking | `activity_event` (append-only), `raw_input`, `reason_taxonomy` | `initiative_state`, `task_state`, `key_result_measurement` projections | every subject type |
+| intervention | `intervention` | `intervention_key_result` | key-result, tracking measurements |
+```

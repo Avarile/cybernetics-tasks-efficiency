@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import ApplicationDBProvider, { DbExecutor } from 'src/infra/application-db/db-connection';
 import { runQuery } from 'src/infra/application-db/query-runner';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
@@ -63,6 +63,33 @@ export class TaskStateRepository {
             target: taskState.taskId,
             set: {
               ...(patch as object),
+              updatedAt: new Date().toISOString(),
+            },
+          });
+      },
+      executor,
+    );
+  }
+
+  async addTime(
+    taskId: number,
+    minutes: number,
+    lastEventAt: string,
+    ctx: IDBConfigOptions,
+    executor?: DbExecutor,
+  ): Promise<void> {
+    return runQuery(
+      this.dbProvider,
+      ctx,
+      async (db) => {
+        await db
+          .insert(taskState)
+          .values({ taskId, totalTimeLoggedMinutes: minutes, lastEventAt })
+          .onConflictDoUpdate({
+            target: taskState.taskId,
+            set: {
+              totalTimeLoggedMinutes: sql`${taskState.totalTimeLoggedMinutes} + ${minutes}`,
+              lastEventAt,
               updatedAt: new Date().toISOString(),
             },
           });
