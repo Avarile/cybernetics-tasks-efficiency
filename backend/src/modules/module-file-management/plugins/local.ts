@@ -19,8 +19,11 @@ export interface ILocalFileUpload {
   mimetype: string;
 }
 
-const READ_PREFIX = '/api/files/read';
-const UPLOAD_PREFIX = '/api/files/upload';
+// Must match src/main.ts: setGlobalPrefix('api') + URI versioning (defaultVersion '1').
+// FileController is not version-neutral, so its routes mount under /api/v1/files.
+const API_PREFIX = '/api/v1/files';
+const READ_PREFIX = `${API_PREFIX}/read`;
+const UPLOAD_PREFIX = `${API_PREFIX}/upload`;
 
 export class LocalStorage extends StorageAdapter {
   readonly storageDir: string;
@@ -118,12 +121,7 @@ export class LocalStorage extends StorageAdapter {
   }
 
   verifyReadToken(token: string): { respHeaders?: IRespHeaders } {
-    let payload: ILocalReadToken;
-    try {
-      payload = this.cipher.decrypt(token);
-    } catch {
-      AppException.throw('FILE_TOKEN_INVALID', 'Invalid read token');
-    }
+    const payload = this.cipher.decrypt(token);
     if (payload.expiresDate > 0 && Math.floor(Date.now() / 1000) > payload.expiresDate) {
       AppException.throw('FILE_TOKEN_INVALID', 'Read token expired');
     }

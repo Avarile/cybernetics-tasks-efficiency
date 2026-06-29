@@ -63,7 +63,7 @@ describe('FileManagement (local provider integration)', () => {
     store.set(`cyb:${ctx.schema_id}:file:upload:${sig.token}`, { mimetype: 'text/plain', hash: 'h', size: 5 });
 
     const res = await service.notify(sig.token, ctx);
-    expect(res.presignedUrl).toContain('/api/files/read/');
+    expect(res.presignedUrl).toContain('/api/v1/files/read/');
 
     const row = await repo.findByToken(sig.token, ctx);
     expect(row).not.toBeNull();

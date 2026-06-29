@@ -59,4 +59,15 @@ describe('FileService', () => {
     expect(out.presignedUrl).toBe('signed://url');
     expect(out.slug).toBe('slug-1');
   });
+
+  it('notify is idempotent — returns existing row without re-creating', async () => {
+    repo.findByToken.mockResolvedValue({
+      token: 'tok', slug: 'slug-1', bucket: 'private', path: 'general/tok',
+      size: 5, mimetype: 'text/plain', width: null, height: null,
+    });
+    const out = await svc.notify('tok', ctx);
+    expect(out.slug).toBe('slug-1');
+    expect(repo.create).not.toHaveBeenCalled();
+    expect(queue.add).not.toHaveBeenCalled();
+  });
 });

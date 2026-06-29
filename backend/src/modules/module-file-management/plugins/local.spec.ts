@@ -13,7 +13,7 @@ describe('LocalStorage', () => {
 
   it('presigned returns an app upload url and PUT method', async () => {
     const res = await storage.presigned('private', 'general', { contentType: 'image/png', contentLength: 3 });
-    expect(res.url).toContain('/api/files/upload/');
+    expect(res.url).toContain('/api/v1/files/upload/');
     expect(res.uploadMethod).toBe('PUT');
     expect(res.path).toBe(join('general', res.token));
   });
@@ -26,7 +26,7 @@ describe('LocalStorage', () => {
     });
     expect(meta.size).toBe(5);
     expect(meta.mimetype).toBe('text/plain');
-    expect(meta.url).toContain('/api/files/read/');
+    expect(meta.url).toContain('/api/v1/files/read/');
     // the bytes really landed on disk
     expect(readFileSync(resolve(storage.storageDir, 'private', 'general/abc')).toString()).toBe('hello');
   });

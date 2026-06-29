@@ -58,23 +58,32 @@ export class MinioStorage extends StorageAdapter {
   }
 
   async getObjectMeta(bucket: string, path: string, _hint?: IObjectHint): Promise<IObjectMeta> {
-    const { size, etag: hash, metaData } = await this.internal.statObject(bucket, path);
-    const mimetype = metaData['content-type'] as string;
-    const url = `/${bucket}/${path}`;
-    if (!isImage(mimetype ?? '')) return { hash, size, mimetype, url };
-    return { ...(await this.getShape(bucket, path)), hash, size, mimetype, url };
+    try {
+      const { size, etag: hash, metaData } = await this.internal.statObject(bucket, path);
+      const mimetype = metaData['content-type'] as string;
+      const url = `/${bucket}/${path}`;
+      if (!isImage(mimetype ?? '')) return { hash, size, mimetype, url };
+      return { ...(await this.getShape(bucket, path)), hash, size, mimetype, url };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      if (e?.code === 'NoSuchKey' || e?.code === 'NotFound') {
+        AppException.throw('FILE_TOKEN_INVALID', 'Uploaded object not found');
+      }
+      AppException.throw('STORAGE_OPERATION_FAILED', e instanceof Error ? e.message : 'getObjectMeta failed');
+    }
   }
 
   private async getShape(bucket: string, path: string): Promise<{ width?: number; height?: number }> {
-    const stream = await this.internal.getObject(bucket, path);
+    let stream: Readable | undefined;
     try {
+      stream = await this.internal.getObject(bucket, path);
       const { width, height } = await stream.pipe(sharp()).metadata();
       return { width, height };
     } catch {
       return {};
     } finally {
-      stream.removeAllListeners();
-      stream.destroy();
+      stream?.removeAllListeners();
+      stream?.destroy();
     }
   }
 

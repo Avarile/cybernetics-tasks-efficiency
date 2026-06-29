@@ -86,6 +86,23 @@ export class FileService {
   }
 
   async notify(token: string, ctx: IDBConfigOptions, filename?: string): Promise<INotifyResult> {
+    const existing = await this.repo.findByToken(token, ctx);
+    if (existing) {
+      // Idempotent: a prior notify already persisted this token (retry / double-submit).
+      const dispositionHeader = filename
+        ? { 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}` }
+        : {};
+      const presignedUrl = await this.storage.getPreviewUrlByPath(
+        ctx.schema_id, existing.bucket, existing.path, existing.token, undefined,
+        { 'Content-Type': existing.mimetype, ...dispositionHeader },
+      );
+      return {
+        token: existing.token, slug: existing.slug, path: existing.path,
+        size: existing.size, mimetype: existing.mimetype,
+        width: existing.width, height: existing.height,
+        url: presignedUrl, presignedUrl,
+      };
+    }
     const sig = await this.cache.get<{ path: string; bucket: string; purpose: FilePurpose }>(
       cacheKey.fileSig(ctx.schema_id, token),
     );
