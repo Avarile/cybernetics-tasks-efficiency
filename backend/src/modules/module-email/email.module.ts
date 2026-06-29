@@ -11,6 +11,7 @@ import {
 } from './mail.helpers';
 import { EmailService } from './email.service';
 import { EmailProcessor } from './email.processor';
+import { EmailController } from './email.controller';
 
 export function mailerOptionsFactory(): MailerOptions {
   const configured = isMailConfigured(env.MAIL_HOST, env.MAIL_AUTH_USER, env.MAIL_AUTH_PASS);
@@ -39,6 +40,7 @@ export function mailerOptionsFactory(): MailerOptions {
     MailerModule.forRoot(mailerOptionsFactory()),
     BullModule.registerQueue({ name: QueueName.EMAIL }),
   ],
+  controllers: [EmailController],
   providers: [EmailService, EmailProcessor],
   exports: [EmailService],
 })
