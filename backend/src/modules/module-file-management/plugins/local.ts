@@ -11,7 +11,7 @@ import env from 'src/utils/env';
 import { AppException } from 'src/utils/exception.provider';
 import { IObjectHint, StorageAdapter } from './adapter';
 import { IObjectMeta, IPresignParams, IPresignRes, IRespHeaders } from '../file.interface';
-import { assertPathWithinStorage, ILocalReadToken, isImage, randomToken, sha256File, TokenCipher } from '../file.util';
+import { assertPathWithinStorage, ILocalReadToken, isImage, parseDurationSeconds, randomToken, sha256File, TokenCipher } from '../file.util';
 
 export interface ILocalFileUpload {
   path: string;
@@ -63,9 +63,13 @@ export class LocalStorage extends StorageAdapter {
       req.on('end', () => fileStream.end());
       req.on('error', (err) => {
         fileStream.end();
+        this.deleteLocal(path);
         reject(err);
       });
-      fileStream.on('error', reject);
+      fileStream.on('error', (err) => {
+        this.deleteLocal(path);
+        reject(err);
+      });
       fileStream.on('finish', () =>
         resolveP({ size, mimetype: req.headers['content-type'] as string, path }),
       );
@@ -82,19 +86,22 @@ export class LocalStorage extends StorageAdapter {
   }
 
   async save(tempPath: string, relPath: string): Promise<string> {
-    const dest = resolve(this.storageDir, relPath);
-    await fse.ensureDir(resolve(dest, '..'));
-    await fse.copy(tempPath, dest);
-    this.deleteLocal(tempPath);
+    const dest = assertPathWithinStorage(relPath, this.storageDir);
+    try {
+      await fse.ensureDir(resolve(dest, '..'));
+      await fse.copy(tempPath, dest);
+    } finally {
+      this.deleteLocal(tempPath);
+    }
     return relPath;
   }
 
   read(relPath: string): Readable {
-    return fse.createReadStream(resolve(this.storageDir, relPath));
+    return fse.createReadStream(assertPathWithinStorage(relPath, this.storageDir));
   }
 
   getLastModifiedTime(relPath: string): number | undefined {
-    const full = resolve(this.storageDir, relPath);
+    const full = assertPathWithinStorage(relPath, this.storageDir);
     return existsSync(full) ? fse.statSync(full).mtimeMs : undefined;
   }
 
@@ -142,7 +149,7 @@ export class LocalStorage extends StorageAdapter {
     }
   }
 
-  async getPreviewUrl(bucket: string, path: string, expiresIn = 0, respHeaders?: IRespHeaders): Promise<string> {
+  async getPreviewUrl(bucket: string, path: string, expiresIn = parseDurationSeconds(env.FILE_URL_EXPIRE_IN), respHeaders?: IRespHeaders): Promise<string> {
     return this.buildReadUrl(bucket, path, {
       expiresDate: Math.floor(Date.now() / 1000) + expiresIn,
       respHeaders,
@@ -167,7 +174,7 @@ export class LocalStorage extends StorageAdapter {
     return { hash, path };
   }
 
-  async uploadFileWithPath(bucket: string, path: string, filePath: string): Promise<{ hash: string; path: string }> {
+  async uploadFileWithPath(bucket: string, path: string, filePath: string, _metadata?: Record<string, unknown>): Promise<{ hash: string; path: string }> {
     const hash = await sha256File(filePath);
     const dest = resolve(this.storageDir, bucket, path);
     await fse.ensureDir(resolve(dest, '..'));
@@ -194,7 +201,7 @@ export class LocalStorage extends StorageAdapter {
   }
 
   async deleteFile(bucket: string, path: string): Promise<void> {
-    this.deleteLocal(resolve(this.storageDir, bucket, path));
+    this.deleteLocal(assertPathWithinStorage(join(bucket, path), this.storageDir));
   }
 
   async deleteDir(bucket: string, path: string, throwError = true): Promise<void> {

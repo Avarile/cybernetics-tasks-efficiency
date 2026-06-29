@@ -42,4 +42,8 @@ describe('LocalStorage', () => {
     const token = new URL('http://x' + url).searchParams.get('token')!;
     expect(() => storage.verifyReadToken(token)).toThrow();
   });
+
+  it('read rejects path traversal', () => {
+    expect(() => storage.read('../../etc/passwd')).toThrow();
+  });
 });
