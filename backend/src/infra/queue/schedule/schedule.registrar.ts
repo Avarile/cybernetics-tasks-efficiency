@@ -11,7 +11,6 @@ export class ScheduleRegistrar implements OnApplicationBootstrap {
 
   constructor(
     @InjectQueue(QueueName.EXAMPLE) private readonly exampleQueue: Queue,
-    @InjectQueue(QueueName.FILE_CROP) private readonly fileCropQueue: Queue,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -19,11 +18,16 @@ export class ScheduleRegistrar implements OnApplicationBootstrap {
   }
 
   private queueFor(job: ScheduledJob): Queue {
-    const map: Record<QueueName, Queue> = {
+    // Only queues with scheduled (cron) jobs are registered here. Event-driven
+    // queues (e.g. FILE_CROP) are intentionally absent.
+    const map: Partial<Record<QueueName, Queue>> = {
       [QueueName.EXAMPLE]: this.exampleQueue,
-      [QueueName.FILE_CROP]: this.fileCropQueue,
     };
-    return map[job.queue];
+    const queue = map[job.queue];
+    if (!queue) {
+      throw new Error(`No queue registered in ScheduleRegistrar for "${job.queue}"`);
+    }
+    return queue;
   }
 
   private async syncSchedulers(): Promise<void> {
