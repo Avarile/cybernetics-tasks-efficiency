@@ -28,13 +28,14 @@ const makeEvent = (
 });
 
 describe('InitiativeStateProjector', () => {
-  let repo: { upsert: jest.Mock; findByInitiativeId: jest.Mock };
+  let repo: { upsert: jest.Mock; findByInitiativeId: jest.Mock; addTime: jest.Mock };
   let projector: InitiativeStateProjector;
 
   beforeEach(() => {
     repo = {
       upsert: jest.fn().mockResolvedValue(undefined),
       findByInitiativeId: jest.fn().mockResolvedValue(null),
+      addTime: jest.fn().mockResolvedValue(undefined),
     };
     projector = new InitiativeStateProjector(repo as any);
   });
@@ -54,21 +55,11 @@ describe('InitiativeStateProjector', () => {
     );
   });
 
-  it('time_logged accumulates minutes from current state', async () => {
-    repo.findByInitiativeId.mockResolvedValue({ totalTimeLoggedMinutes: 10 });
+  it('time_logged calls addTime with the minutes and occurredAt', async () => {
     const event = makeEvent({ type: 'time_logged', payload: { minutes: 30 } });
     await projector.apply(event, makeCtx());
-    expect(repo.upsert).toHaveBeenCalledWith(
-      9,
-      expect.objectContaining({ totalTimeLoggedMinutes: 40 }),
-      expect.anything(),
-      undefined,
-    );
-    expect(repo.findByInitiativeId).toHaveBeenCalledWith(
-      9,
-      expect.anything(),
-      undefined,
-    );
+    expect(repo.addTime).toHaveBeenCalledWith(9, 30, event.occurredAt, expect.anything(), undefined);
+    expect(repo.upsert).not.toHaveBeenCalled();
   });
 
   it('ignores non-initiative subjects (e.g. key_result)', async () => {

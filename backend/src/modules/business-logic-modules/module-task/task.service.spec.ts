@@ -10,6 +10,10 @@ describe('TaskService', () => {
   let repo: any;
   let service: TaskService;
 
+  let initiativeRepo: any;
+  let personRepo: any;
+  let labelRepo: any;
+
   beforeEach(() => {
     repo = {
       create: jest.fn(async (i) => ({ id: 1, slug: 's1', sequenceId: 1, status: 'not_started', ...i })),
@@ -19,13 +23,22 @@ describe('TaskService', () => {
       delete: jest.fn(),
       countByInitiative: jest.fn(async () => ({ total: 0, byStatus: {} })),
     };
-    service = new TaskService(repo);
+    initiativeRepo = { findById: jest.fn(async () => ({ id: 1 })) };
+    personRepo = { findById: jest.fn(async () => ({ id: 7 })) };
+    labelRepo = { findById: jest.fn(async () => ({ id: 1 })) };
+    service = new TaskService(repo, initiativeRepo, personRepo, labelRepo);
   });
 
   it('create delegates to repo', async () => {
     const out = await service.create({ initiativeId: 1, title: 'T', priority: 'none', createdByPersonId: 7 } as any, ctx);
     expect(out.id).toBe(1);
     expect(repo.create).toHaveBeenCalled();
+  });
+
+  it('create throws when initiative does not exist', async () => {
+    initiativeRepo.findById.mockResolvedValue(null);
+    await expect(service.create({ initiativeId: 99, title: 'T', priority: 'none', createdByPersonId: 7 } as any, ctx)).rejects.toBeDefined();
+    expect(repo.create).not.toHaveBeenCalled();
   });
 
   it('update forbids a member editing a task they did not create', async () => {

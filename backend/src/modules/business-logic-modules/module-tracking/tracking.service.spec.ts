@@ -35,7 +35,11 @@ describe('TrackingService (unit)', () => {
   let keyResultsUpdate: jest.Mock;
   let projectorApply: jest.Mock;
   let withTenantTransaction: jest.Mock;
+  let initiativeStateFind: jest.Mock;
+  let taskStateFind: jest.Mock;
   let svc: TrackingService;
+
+  const makeState = (status: string) => ({ status, totalTimeLoggedMinutes: 0, blockedSince: null, lastEventAt: null });
 
   beforeEach(() => {
     append = jest.fn().mockResolvedValue(makeEvent());
@@ -46,6 +50,9 @@ describe('TrackingService (unit)', () => {
     // Run the work callback immediately with the sentinel tx, mirroring a
     // committed transaction.
     withTenantTransaction = jest.fn((_ctx, work) => work(TX));
+    // Default: no prior state row → treated as 'not_started', valid for 'started'.
+    initiativeStateFind = jest.fn().mockResolvedValue(null);
+    taskStateFind = jest.fn().mockResolvedValue(null);
 
     svc = new TrackingService(
       { append } as any,
@@ -54,7 +61,9 @@ describe('TrackingService (unit)', () => {
       { updateCurrentValue: keyResultsUpdate } as any,
       { withTenantTransaction } as any,
       { apply: projectorApply } as any,
+      { findByInitiativeId: initiativeStateFind } as any,
       { apply: jest.fn() } as any,
+      { findByTaskId: taskStateFind } as any,
     );
   });
 
@@ -99,13 +108,14 @@ describe('TrackingService (unit)', () => {
 
   describe('pause/resume/block/unblock/complete/cancel', () => {
     it.each([
-      ['pause', 'paused'],
-      ['resume', 'resumed'],
-      ['block', 'blocked'],
-      ['unblock', 'unblocked'],
-      ['complete', 'completed'],
-      ['cancel', 'cancelled'],
-    ])('%s() emits type=%s', async (method, type) => {
+      ['pause',    'paused',    'in_progress'],
+      ['resume',   'resumed',   'paused'],
+      ['block',    'blocked',   'in_progress'],
+      ['unblock',  'unblocked', 'blocked'],
+      ['complete', 'completed', 'in_progress'],
+      ['cancel',   'cancelled', 'not_started'],
+    ])('%s() emits type=%s', async (method, type, fromStatus) => {
+      initiativeStateFind.mockResolvedValueOnce(makeState(fromStatus));
       await (svc as any)[method](5, 1, makeCtx());
       expect(append).toHaveBeenCalledWith(
         expect.objectContaining({ type }),
@@ -224,8 +234,11 @@ describe('task lifecycle', () => {
     const taskProjector = { apply: jest.fn() };
     const dbProvider = { withTenantTransaction: jest.fn(async (_ctx: any, work: any) => work({} as any)) };
     const emitter = { emit: jest.fn() };
+    // State repos: task has no prior state → treated as 'not_started', valid for 'started'.
+    const initiativeStateRepo = { findByInitiativeId: jest.fn().mockResolvedValue(null) };
+    const taskStateRepo = { findByTaskId: jest.fn().mockResolvedValue(null) };
     const service = new (require('./tracking.service').TrackingService)(
-      activityEvents, emitter, { add: jest.fn() }, { updateCurrentValue: jest.fn() }, dbProvider, initiativeProjector, taskProjector,
+      activityEvents, emitter, { add: jest.fn() }, { updateCurrentValue: jest.fn() }, dbProvider, initiativeProjector, initiativeStateRepo, taskProjector, taskStateRepo,
     );
 
     const event = await service.startTask(42, 7, { database_uri: 'x', schema_id: 'public', user_id: 7 } as any);

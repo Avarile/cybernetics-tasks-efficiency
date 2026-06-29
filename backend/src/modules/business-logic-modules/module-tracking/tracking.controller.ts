@@ -72,11 +72,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Start an initiative' })
   async start(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.start(ini.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Initiative started');
   }
@@ -86,11 +88,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Pause an initiative' })
   async pause(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.pause(ini.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Initiative paused');
   }
@@ -100,11 +104,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Resume an initiative' })
   async resume(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.resume(ini.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Initiative resumed');
   }
@@ -114,11 +120,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Block an initiative' })
   async block(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.block(ini.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Initiative blocked');
   }
@@ -128,11 +136,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Unblock an initiative' })
   async unblock(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.unblock(ini.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Initiative unblocked');
   }
@@ -142,11 +152,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Complete an initiative' })
   async complete(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.complete(ini.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Initiative completed');
   }
@@ -156,11 +168,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Cancel an initiative' })
   async cancel(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.cancel(ini.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Initiative cancelled');
   }
@@ -174,11 +188,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Log time on an initiative' })
   async logTime(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LogTimeDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.logTime(ini.id, user.id, dto.minutes, tenancy);
     return buildOk(event, 'Time logged');
   }
@@ -188,11 +204,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Record a reason on an initiative' })
   async recordReason(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: RecordReasonDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.recordReason(
       'initiative',
       ini.id,
@@ -208,11 +226,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Record outcome on an initiative' })
   async recordOutcome(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: RecordOutcomeDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
+    assertAbility(ability, 'update', 'Initiative', ini);
     const event = await this.trackingService.recordOutcome(ini.id, user.id, { result: dto.result }, tenancy);
     return buildOk(event, 'Outcome recorded');
   }
@@ -226,11 +246,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Get activity timeline for an initiative' })
   async getTimeline(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const ini = await this.resolveInitiative(slug, tenancy);
-    const events = await this.activityEventRepo.listBySubject('initiative', ini.id, tenancy);
+    const all = await this.activityEventRepo.listBySubject('initiative', ini.id, tenancy);
+    const events = all.filter((e) => ability.can('read', subject('ActivityEvent', e as unknown as Record<string, unknown>)));
     return buildOk(events, 'Timeline retrieved');
   }
 
@@ -261,11 +283,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Start a task' })
   async startTask(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
+    assertAbility(ability, 'update', 'Task', t);
     const event = await this.trackingService.startTask(t.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Task started');
   }
@@ -275,11 +299,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Pause a task' })
   async pauseTask(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
+    assertAbility(ability, 'update', 'Task', t);
     const event = await this.trackingService.pauseTask(t.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Task paused');
   }
@@ -289,11 +315,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Resume a task' })
   async resumeTask(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
+    assertAbility(ability, 'update', 'Task', t);
     const event = await this.trackingService.resumeTask(t.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Task resumed');
   }
@@ -303,11 +331,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Block a task' })
   async blockTask(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
+    assertAbility(ability, 'update', 'Task', t);
     const event = await this.trackingService.blockTask(t.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Task blocked');
   }
@@ -317,11 +347,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Unblock a task' })
   async unblockTask(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
+    assertAbility(ability, 'update', 'Task', t);
     const event = await this.trackingService.unblockTask(t.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Task unblocked');
   }
@@ -331,11 +363,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Complete a task' })
   async completeTask(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
+    assertAbility(ability, 'update', 'Task', t);
     const event = await this.trackingService.completeTask(t.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Task completed');
   }
@@ -345,11 +379,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Cancel a task' })
   async cancelTask(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LifecyclePayloadDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
+    assertAbility(ability, 'update', 'Task', t);
     const event = await this.trackingService.cancelTask(t.id, user.id, tenancy, dto.payload);
     return buildOk(event, 'Task cancelled');
   }
@@ -359,11 +395,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Log time on a task' })
   async logTaskTime(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
     @Body() dto: LogTimeDTO,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
+    assertAbility(ability, 'update', 'Task', t);
     const event = await this.trackingService.logTaskTime(t.id, user.id, dto.minutes, tenancy);
     return buildOk(event, 'Time logged');
   }
@@ -373,11 +411,13 @@ export class TrackingController {
   @ApiOperation({ summary: 'Get activity timeline for a task' })
   async getTaskTimeline(
     @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
     @Param('slug') slug: string,
   ): Promise<IBaseResponse> {
     const tenancy = this.ctx.forUser(user.id);
     const t = await this.resolveTask(slug, tenancy);
-    const events = await this.activityEventRepo.listBySubject('task', t.id, tenancy);
+    const all = await this.activityEventRepo.listBySubject('task', t.id, tenancy);
+    const events = all.filter((e) => ability.can('read', subject('ActivityEvent', e as unknown as Record<string, unknown>)));
     return buildOk(events, 'Timeline retrieved');
   }
 }

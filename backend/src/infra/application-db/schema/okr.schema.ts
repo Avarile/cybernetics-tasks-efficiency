@@ -126,6 +126,7 @@ export const initiativeKeyResult = pgTable(
   (t) => [
     index('initiative_key_result_initiative_index').on(t.initiativeId),
     index('initiative_key_result_key_result_index').on(t.keyResultId),
+    uniqueIndex('initiative_key_result_unique').on(t.initiativeId, t.keyResultId).where(sql`${t.isDeleted} = false`),
   ],
 );
 
@@ -181,5 +182,6 @@ export const interventionKeyResult = pgTable(
   (t) => [
     index('intervention_key_result_intervention_index').on(t.interventionId),
     index('intervention_key_result_key_result_index').on(t.keyResultId),
+    uniqueIndex('intervention_key_result_unique').on(t.interventionId, t.keyResultId).where(sql`${t.isDeleted} = false`),
   ],
 );

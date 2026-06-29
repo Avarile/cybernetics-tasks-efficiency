@@ -30,7 +30,7 @@ describe('TrackingService → InitiativeStateProjector (real DB integration)', (
     stateRepo = moduleRef.get(InitiativeStateRepository);
   }, 30_000);
 
-  it('start → block → complete sequence projects status=completed end-to-end', async () => {
+  it('start → block → unblock → complete sequence projects status=completed end-to-end', async () => {
     const ctx = getCtx();
     // Use an arbitrary initiativeId — projection row is keyed by initiativeId only
     const initiativeId = 99_901;
@@ -38,6 +38,7 @@ describe('TrackingService → InitiativeStateProjector (real DB integration)', (
 
     await trackingService.start(initiativeId, actorId, ctx);
     await trackingService.block(initiativeId, actorId, ctx);
+    await trackingService.unblock(initiativeId, actorId, ctx);
     await trackingService.complete(initiativeId, actorId, ctx);
 
     const state = await stateRepo.findByInitiativeId(initiativeId, ctx);

@@ -11,8 +11,8 @@ describe('TaskStateProjector', () => {
   let taskRepo: any;
   let projector: TaskStateProjector;
   beforeEach(() => {
-    repo = { upsert: jest.fn(), findByTaskId: jest.fn() };
-    taskRepo = { updateStatus: jest.fn() };
+    repo = { upsert: jest.fn(), findByTaskId: jest.fn(), addTime: jest.fn() };
+    taskRepo = { updateStatus: jest.fn(), updateCompletedAt: jest.fn() };
     projector = new TaskStateProjector(repo as any, taskRepo as any);
   });
 
@@ -33,9 +33,9 @@ describe('TaskStateProjector', () => {
     expect(repo.upsert).toHaveBeenCalledWith(42, expect.objectContaining({ status: 'blocked', blockedSince: '2026-06-28T01:00:00Z' }), expect.anything(), undefined);
   });
 
-  it('time_logged → accumulates totalTimeLoggedMinutes', async () => {
-    repo.findByTaskId.mockResolvedValue({ totalTimeLoggedMinutes: 30 });
+  it('time_logged → calls addTime atomically', async () => {
     await projector.apply(ev({ type: 'time_logged', payload: { minutes: 15 } }) as any, {} as any);
-    expect(repo.upsert).toHaveBeenCalledWith(42, expect.objectContaining({ totalTimeLoggedMinutes: 45 }), expect.anything(), undefined);
+    expect(repo.addTime).toHaveBeenCalledWith(42, 15, expect.any(String), expect.anything(), undefined);
+    expect(repo.upsert).not.toHaveBeenCalled();
   });
 });

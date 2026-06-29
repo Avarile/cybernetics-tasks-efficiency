@@ -4,6 +4,7 @@ import { AppException } from 'src/utils/exception.provider';
 import { AppAbility } from 'src/common/casl/ability.types';
 import { assertAbility } from 'src/common/casl/assert-ability';
 import { InterventionRepository } from './intervention.repo';
+import { KeyResultRepository } from '../module-key-result/key-result.repo';
 import {
   INewIntervention,
   IUpdateIntervention,
@@ -14,7 +15,10 @@ import { IBaseQueryResult } from 'src/utils/shared/interface';
 
 @Injectable()
 export class InterventionService {
-  constructor(private readonly repo: InterventionRepository) {}
+  constructor(
+    private readonly repo: InterventionRepository,
+    private readonly keyResultRepo: KeyResultRepository,
+  ) {}
 
   async create(item: INewIntervention, ctx: IDBConfigOptions): Promise<IInterventionEntity> {
     return this.repo.create(item, ctx);
@@ -58,6 +62,9 @@ export class InterventionService {
   }
 
   async linkKeyResult(interventionId: number, keyResultId: number, ctx: IDBConfigOptions): Promise<void> {
+    await this.requireById(interventionId, ctx);
+    const kr = await this.keyResultRepo.findById(keyResultId, ctx);
+    if (!kr) AppException.notFound('KeyResult', keyResultId);
     return this.repo.linkKeyResult(interventionId, keyResultId, ctx);
   }
 

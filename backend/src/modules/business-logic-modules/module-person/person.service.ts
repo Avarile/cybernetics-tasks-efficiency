@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { IDBConfigOptions } from 'src/infra/application-db/application-db.module';
 import { AppException } from 'src/utils/exception.provider';
 import { AppAbility } from 'src/common/casl/ability.types';
 import { assertAbility } from 'src/common/casl/assert-ability';
+import { cacheKey } from 'src/infra/cache/cache.constants';
 import { PersonRepository } from './person.repo';
 import {
   INewPerson,
@@ -14,7 +17,18 @@ import { IBaseQueryResult } from 'src/utils/shared/interface';
 
 @Injectable()
 export class PersonService {
-  constructor(private readonly repo: PersonRepository) {}
+  constructor(
+    private readonly repo: PersonRepository,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
+
+  /**
+   * Bust the per-account cache populated by JwtStrategy (keyed by schema + id),
+   * so a role/active/deleted change takes effect before the TTL expires.
+   */
+  private async invalidateAccount(id: number, ctx: IDBConfigOptions): Promise<void> {
+    await this.cache.del(cacheKey.account(ctx.schema_id, id));
+  }
 
   async create(item: INewPerson, ctx: IDBConfigOptions): Promise<IPersonEntity> {
     return this.repo.create(item, ctx);
@@ -34,12 +48,15 @@ export class PersonService {
   ): Promise<IPersonEntity> {
     const existing = await this.requireById(id, ctx);
     assertAbility(ability, 'update', 'Person', existing, 'You cannot update this person');
-    return this.repo.update(id, payload, ctx);
+    const updated = await this.repo.update(id, payload, ctx);
+    await this.invalidateAccount(id, ctx);
+    return updated;
   }
 
   async remove(id: number, ctx: IDBConfigOptions): Promise<void> {
     await this.requireById(id, ctx);
     await this.repo.delete(id, ctx);
+    await this.invalidateAccount(id, ctx);
   }
 
   async queryAll(ctx: IDBConfigOptions): Promise<IPersonEntity[]> {

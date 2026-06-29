@@ -43,6 +43,13 @@
       "when": 1782729003240,
       "tag": "0005_foamy_pepper_potts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782828000000,
+      "tag": "0006_join_table_unique_constraints",
+      "breakpoints": true
     }
   ]
 }

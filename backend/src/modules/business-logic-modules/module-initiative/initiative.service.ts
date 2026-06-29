@@ -4,6 +4,7 @@ import { AppException } from 'src/utils/exception.provider';
 import { AppAbility } from 'src/common/casl/ability.types';
 import { assertAbility } from 'src/common/casl/assert-ability';
 import { InitiativeRepository } from './initiative.repo';
+import { KeyResultRepository } from '../module-key-result/key-result.repo';
 import {
   INewInitiative,
   IUpdateInitiative,
@@ -14,7 +15,10 @@ import { IBaseQueryResult } from 'src/utils/shared/interface';
 
 @Injectable()
 export class InitiativeService {
-  constructor(private readonly repo: InitiativeRepository) {}
+  constructor(
+    private readonly repo: InitiativeRepository,
+    private readonly keyResultRepo: KeyResultRepository,
+  ) {}
 
   async create(item: INewInitiative, ctx: IDBConfigOptions): Promise<IInitiativeEntity> {
     return this.repo.create(item, ctx);
@@ -92,6 +96,9 @@ export class InitiativeService {
   }
 
   async linkKeyResult(initiativeId: number, keyResultId: number, ctx: IDBConfigOptions): Promise<void> {
+    await this.requireById(initiativeId, ctx);
+    const kr = await this.keyResultRepo.findById(keyResultId, ctx);
+    if (!kr) AppException.notFound('KeyResult', keyResultId);
     return this.repo.linkKeyResult(initiativeId, keyResultId, ctx);
   }
 

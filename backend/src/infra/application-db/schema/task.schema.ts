@@ -9,6 +9,7 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { defaultFields } from './common.schema';
 import { initiativeStatus } from './okr.schema';
 
@@ -66,6 +67,7 @@ export const taskAssignee = pgTable(
   (t) => [
     index('task_assignee_task_index').on(t.taskId),
     index('task_assignee_person_index').on(t.personId),
+    uniqueIndex('task_assignee_unique').on(t.taskId, t.personId).where(sql`${t.isDeleted} = false`),
   ],
 );
 
@@ -95,6 +97,7 @@ export const taskLabel = pgTable(
   (t) => [
     index('task_label_task_index').on(t.taskId),
     index('task_label_label_index').on(t.labelId),
+    uniqueIndex('task_label_unique').on(t.taskId, t.labelId).where(sql`${t.isDeleted} = false`),
   ],
 );
 

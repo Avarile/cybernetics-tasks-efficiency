@@ -5,13 +5,32 @@ import { AppAbility } from 'src/common/casl/ability.types';
 import { assertAbility } from 'src/common/casl/assert-ability';
 import { IBaseQueryResult } from 'src/utils/shared/interface';
 import { TaskRepository } from './task.repo';
+import { InitiativeRepository } from '../module-initiative/initiative.repo';
+import { PersonRepository } from '../module-person/person.repo';
+import { LabelRepository } from '../module-label/label.repo';
 import { INewTask, IUpdateTask, ITaskEntity, IQueryTaskParams, ITaskSummary } from './task.interface';
 
 @Injectable()
 export class TaskService {
-  constructor(private readonly repo: TaskRepository) {}
+  constructor(
+    private readonly repo: TaskRepository,
+    private readonly initiativeRepo: InitiativeRepository,
+    private readonly personRepo: PersonRepository,
+    private readonly labelRepo: LabelRepository,
+  ) {}
 
   async create(item: INewTask, ctx: IDBConfigOptions): Promise<ITaskEntity> {
+    const initiative = await this.initiativeRepo.findById(item.initiativeId, ctx);
+    if (!initiative) AppException.notFound('Initiative', item.initiativeId);
+
+    if (item.parentId != null) {
+      if (item.parentId === item.initiativeId) {
+        AppException.throw('VALIDATION_FAILED', 'A task cannot be its own parent');
+      }
+      const parent = await this.repo.findById(item.parentId, ctx);
+      if (!parent) AppException.notFound('Task', item.parentId);
+    }
+
     return this.repo.create(item, ctx);
   }
 
@@ -66,6 +85,8 @@ export class TaskService {
   }
 
   async assign(taskId: number, personId: number, ctx: IDBConfigOptions): Promise<void> {
+    const person = await this.personRepo.findById(personId, ctx);
+    if (!person) AppException.notFound('Person', personId);
     return this.repo.linkAssignee(taskId, personId, ctx);
   }
 
@@ -78,6 +99,8 @@ export class TaskService {
   }
 
   async addLabel(taskId: number, labelId: number, ctx: IDBConfigOptions): Promise<void> {
+    const lbl = await this.labelRepo.findById(labelId, ctx);
+    if (!lbl) AppException.notFound('Label', labelId);
     return this.repo.addLabel(taskId, labelId, ctx);
   }
 
