@@ -9,6 +9,10 @@ import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { IUserSession } from './current-user-module/session.interface';
 
+// Scope the refresh cookie to the auth routes only. Must track main.ts:
+// setGlobalPrefix('api') + URI versioning (defaultVersion '1') → /api/v1 + @Controller('auth').
+const REFRESH_COOKIE_PATH = '/api/v1/auth';
+
 @Injectable()
 export class AuthenticationService {
   constructor(
@@ -98,7 +102,7 @@ export class AuthenticationService {
       sameSite: 'lax',
       secure: env.COOKIE_SECURE,
       domain: env.COOKIE_DOMAIN,
-      path: '/api/auth',
+      path: REFRESH_COOKIE_PATH,
       maxAge: this.tokens.refreshTtlMs(),
     });
   }
@@ -109,7 +113,7 @@ export class AuthenticationService {
       sameSite: 'lax',
       secure: env.COOKIE_SECURE,
       domain: env.COOKIE_DOMAIN,
-      path: '/api/auth',
+      path: REFRESH_COOKIE_PATH,
     });
   }
 }

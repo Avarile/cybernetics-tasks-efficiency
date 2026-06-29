@@ -87,6 +87,6 @@ describe('AuthenticationService', () => {
     const r = res();
     await svc.logout(req({ cyb_refresh: 'raw-refresh' }), r);
     expect(d.sessions.revoke).toHaveBeenCalledWith(99, SYS);
-    expect(r.clearCookie).toHaveBeenCalledWith('cyb_refresh', expect.objectContaining({ path: '/api/auth' }));
+    expect(r.clearCookie).toHaveBeenCalledWith('cyb_refresh', expect.objectContaining({ path: '/api/v1/auth' }));
   });
 });
