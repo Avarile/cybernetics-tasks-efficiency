@@ -50,6 +50,13 @@
       "when": 1782828000000,
       "tag": "0006_join_table_unique_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782738932835,
+      "tag": "0007_foamy_maggott",
+      "breakpoints": true
     }
   ]
 }
