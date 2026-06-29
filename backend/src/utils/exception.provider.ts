@@ -13,6 +13,9 @@ export const ERROR_CATALOG = {
   FILE_TOO_LARGE:        { status: HttpStatus.PAYLOAD_TOO_LARGE,      message: 'File exceeds maximum upload size' },
   FILE_TYPE_REJECTED:    { status: HttpStatus.UNSUPPORTED_MEDIA_TYPE, message: 'File type not allowed' },
   STORAGE_OPERATION_FAILED: { status: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Storage operation failed' },
+  EMAIL_SEND_FAILED:        { status: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Email send operation failed' },
+  MAIL_TRANSPORT_INVALID:   { status: HttpStatus.BAD_REQUEST,            message: 'Invalid mail transport configuration' },
+  MAIL_RATE_LIMITED:        { status: HttpStatus.TOO_MANY_REQUESTS,      message: 'Too many email requests; try again later' },
 } as const satisfies Record<string, { status: HttpStatus; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

@@ -14,4 +14,5 @@ export const cacheKey = {
   fileLocalSig: (schema: string, token: string) => `cyb:${schema}:file:lsig:${token}`,
   fileUpload: (schema: string, token: string) => `cyb:${schema}:file:upload:${token}`,
   filePreview: (schema: string, token: string) => `cyb:${schema}:file:preview:${token}`,
+  mailRate: (schema: string, purpose: string, email: string) => `cyb:${schema}:mail:rate:${purpose}:${email}`,
 };

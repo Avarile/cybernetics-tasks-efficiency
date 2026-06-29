@@ -1,1 +1,10 @@
-{ "collection": "@nestjs/schematics", "sourceRoot": "src", "compilerOptions": { "deleteOutDir": true } }
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "assets": [
+      { "include": "modules/module-email/templates/**/*.hbs", "outDir": "dist", "watchAssets": true }
+    ]
+  }
+}
