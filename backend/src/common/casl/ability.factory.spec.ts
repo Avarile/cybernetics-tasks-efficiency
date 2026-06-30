@@ -117,4 +117,36 @@ describe('defineAbilityFor', () => {
     expect(a.can('read', 'Attachment')).toBe(true);
     expect(a.can('create', 'Attachment')).toBe(false);
   });
+
+  it('admin can read others private knowledge', () => {
+    const a = defineAbilityFor(user({ role: 'admin' }));
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 8, visibility: 'private' }))).toBe(true);
+  });
+
+  it('executive reads organization knowledge and own, not others private/shared', () => {
+    const a = defineAbilityFor(user({ id: 1, role: 'executive' }));
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 9, visibility: 'organization' }))).toBe(true);
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 1, visibility: 'private' }))).toBe(true);
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 9, visibility: 'private' }))).toBe(false);
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 9, visibility: 'shared' }))).toBe(false);
+    expect(a.can('create', 'Knowledge')).toBe(false);
+    expect(a.can('update', subject('Knowledge', { ownerPersonId: 1 }))).toBe(false);
+  });
+
+  it('manager manages own knowledge and reads org, not others private/shared', () => {
+    const a = defineAbilityFor(user({ id: 5, role: 'manager' }));
+    expect(a.can('update', subject('Knowledge', { ownerPersonId: 5 }))).toBe(true);
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 9, visibility: 'organization' }))).toBe(true);
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 9, visibility: 'private' }))).toBe(false);
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 9, visibility: 'shared' }))).toBe(false);
+  });
+
+  it('member manages own knowledge and reads only org for others', () => {
+    const a = defineAbilityFor(user({ id: 7, role: 'member' }));
+    expect(a.can('create', 'Knowledge')).toBe(true);
+    expect(a.can('update', subject('Knowledge', { ownerPersonId: 7 }))).toBe(true);
+    expect(a.can('update', subject('Knowledge', { ownerPersonId: 8 }))).toBe(false);
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 9, visibility: 'organization' }))).toBe(true);
+    expect(a.can('read', subject('Knowledge', { ownerPersonId: 9, visibility: 'private' }))).toBe(false);
+  });
 });

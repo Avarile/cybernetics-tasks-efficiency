@@ -13,7 +13,7 @@ type AnyAbility = PureAbility<any, any>;
  * Conditions are matched against plain Drizzle rows tagged with `subject()`.
  */
 export function defineAbilityFor(user: IUserSession): AppAbility {
-  const { can, build } = new AbilityBuilder<AnyAbility>(createMongoAbility);
+  const { can, cannot, build } = new AbilityBuilder<AnyAbility>(createMongoAbility);
 
   switch (user.role) {
     case 'admin':
@@ -22,6 +22,8 @@ export function defineAbilityFor(user: IUserSession): AppAbility {
 
     case 'executive':
       can('read', 'all');
+      cannot('read', 'Knowledge', { visibility: { $ne: 'organization' } });
+      can('read', 'Knowledge', { ownerPersonId: user.id });
       break;
 
     case 'manager':
@@ -39,6 +41,8 @@ export function defineAbilityFor(user: IUserSession): AppAbility {
       can('create', 'ActivityEvent', { actorPersonId: user.id });
       can('create', 'Attachment');
       can(['read', 'delete'], 'Attachment', { createdByPersonId: user.id });
+      cannot('read', 'Knowledge', { visibility: { $ne: 'organization' } });
+      can('manage', 'Knowledge', { ownerPersonId: user.id });
       break;
 
     case 'member':
@@ -58,6 +62,8 @@ export function defineAbilityFor(user: IUserSession): AppAbility {
       can('read', 'Label');
       can('create', 'ActivityEvent', { actorPersonId: user.id });
       can('read', 'ActivityEvent', { actorPersonId: user.id });
+      can('manage', 'Knowledge', { ownerPersonId: user.id });
+      can('read', 'Knowledge', { visibility: 'organization' });
       can('update', 'Person', { id: user.id });
       can('create', 'Attachment');
       can(['read', 'delete'], 'Attachment', { createdByPersonId: user.id });

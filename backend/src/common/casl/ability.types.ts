@@ -16,6 +16,7 @@ export type AppSubjectName =
   | 'Task'
   | 'Label'
   | 'Attachment'
+  | 'Knowledge'
   | 'all';
 
 /**
