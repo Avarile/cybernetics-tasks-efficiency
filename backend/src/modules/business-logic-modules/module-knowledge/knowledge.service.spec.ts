@@ -85,3 +85,60 @@ describe('KnowledgeService — read authorization', () => {
     expect(repo.query).toHaveBeenCalledWith(expect.objectContaining({ unrestricted: true }), ctx);
   });
 });
+
+describe('KnowledgeService — shares & task attach', () => {
+  let repo: any; let personRepo: any; let taskRepo: any; let files: any; let svc: KnowledgeService;
+  const knol = (over: any) => ({ id: 1, slug: 'k-1', title: 'T', body: null, ownerPersonId: 7, visibility: 'private', ...over });
+
+  beforeEach(() => {
+    repo = {
+      findBySlug: jest.fn(async () => knol({})),
+      findById: jest.fn(async () => knol({})),
+      update: jest.fn(async (_i: number, p: any) => knol(p)),
+      linkShare: jest.fn(), unlinkShare: jest.fn(),
+      addLink: jest.fn(async () => ({ id: 11, knowledgeId: 1, url: 'u', title: null })),
+      removeLink: jest.fn(), findLinks: jest.fn(async () => []),
+      linkAttachment: jest.fn(), unlinkAttachment: jest.fn(), findAttachmentIds: jest.fn(async () => [5]),
+      linkTask: jest.fn(), unlinkTask: jest.fn(),
+      findKnowledgeIdsForTask: jest.fn(async () => [1]), findByIds: jest.fn(async () => [knol({})]),
+      findShareePersonIds: jest.fn(async () => []), findTaskIds: jest.fn(async () => []),
+    };
+    personRepo = { findById: jest.fn(async () => ({ id: 2 })) };
+    taskRepo = { findById: jest.fn(async () => ({ id: 100, createdByPersonId: 7 })) };
+    files = { getLinkByIds: jest.fn(async () => [{ id: 5, slug: 'a5', url: 'pic://5', mimetype: 'image/png', thumbnailPath: null }]) };
+    svc = new KnowledgeService(repo, personRepo, taskRepo, files);
+  });
+
+  it('addShare on a private entry auto-promotes it to shared', async () => {
+    const ability = defineAbilityFor(userSession({ id: 7, role: 'member' }));
+    await svc.addShare('k-1', 2, ctx, ability);
+    expect(personRepo.findById).toHaveBeenCalledWith(2, ctx);
+    expect(repo.linkShare).toHaveBeenCalledWith(1, 2, ctx);
+    expect(repo.update).toHaveBeenCalledWith(1, { visibility: 'shared' }, ctx);
+  });
+
+  it('addShare rejects a non-owner', async () => {
+    repo.findBySlug.mockResolvedValue(knol({ ownerPersonId: 1 }));
+    const ability = defineAbilityFor(userSession({ id: 7, role: 'member' }));
+    await expect(svc.addShare('k-1', 2, ctx, ability)).rejects.toBeDefined();
+  });
+
+  it('listAttachments resolves attachment ids to urls', async () => {
+    const ability = defineAbilityFor(userSession({ id: 7, role: 'member' }));
+    const out = await svc.listAttachments('k-1', ctx, ability, userSession({ id: 7 }));
+    expect(files.getLinkByIds).toHaveBeenCalledWith([5], ctx);
+    expect(out[0].url).toBe('pic://5');
+  });
+
+  it('attachToTask records who attached', async () => {
+    const ability = defineAbilityFor(userSession({ id: 7, role: 'member' }));
+    await svc.attachToTask('k-1', 100, ctx, ability, userSession({ id: 7 }));
+    expect(repo.linkTask).toHaveBeenCalledWith(100, 1, 7, ctx);
+  });
+
+  it('listForTask returns attached knowledge rows', async () => {
+    const out = await svc.listForTask(100, ctx);
+    expect(repo.findKnowledgeIdsForTask).toHaveBeenCalledWith(100, ctx);
+    expect(out.map((k: any) => k.id)).toEqual([1]);
+  });
+});

@@ -11,7 +11,9 @@ import { PersonRepository } from '../module-person/person.repo';
 import { TaskRepository } from '../module-task/task.repo';
 import { KnowledgeRepository } from './knowledge.repo';
 import {
+  IKnowledgeAttachmentRef,
   IKnowledgeEntity,
+  IKnowledgeLink,
   IQueryKnowledgeParams,
   IUpdateKnowledge,
 } from './knowledge.interface';
@@ -132,5 +134,89 @@ export class KnowledgeService {
       ? []
       : await this.repo.findSharedKnowledgeIdsForPerson(user.id, ctx);
     return this.repo.query({ ...params, requesterId: user.id, sharedIds, unrestricted }, ctx);
+  }
+
+  // --- shares (owner/admin only; first share promotes private → shared) -----
+
+  async addShare(slug: string, personId: number, ctx: IDBConfigOptions, ability: AppAbility): Promise<void> {
+    const entity = await this.requireWritable(slug, ctx, ability);
+    const person = await this.personRepo.findById(personId, ctx);
+    if (!person) AppException.notFound('Person', personId);
+    await this.repo.linkShare(entity.id, personId, ctx);
+    if (entity.visibility === 'private') {
+      await this.repo.update(entity.id, { visibility: 'shared' }, ctx);
+    }
+  }
+
+  async removeShare(slug: string, personId: number, ctx: IDBConfigOptions, ability: AppAbility): Promise<void> {
+    const entity = await this.requireWritable(slug, ctx, ability);
+    await this.repo.unlinkShare(entity.id, personId, ctx);
+  }
+
+  // --- links (owner/admin only) --------------------------------------------
+
+  async addLink(slug: string, url: string, title: string | null, ctx: IDBConfigOptions, ability: AppAbility): Promise<IKnowledgeLink> {
+    const entity = await this.requireWritable(slug, ctx, ability);
+    return this.repo.addLink(entity.id, url, title, ctx);
+  }
+
+  async removeLink(slug: string, linkId: number, ctx: IDBConfigOptions, ability: AppAbility): Promise<void> {
+    const entity = await this.requireWritable(slug, ctx, ability);
+    await this.repo.removeLink(entity.id, linkId, ctx);
+  }
+
+  async listLinks(slug: string, ctx: IDBConfigOptions, ability: AppAbility, user: IUserSession): Promise<IKnowledgeLink[]> {
+    const entity = await this.requireReadableBySlug(slug, ctx, ability, user);
+    return this.repo.findLinks(entity.id, ctx);
+  }
+
+  // --- attachments (owner/admin to write; readable to list) ----------------
+
+  async attachFile(slug: string, attachmentId: number, ctx: IDBConfigOptions, ability: AppAbility): Promise<void> {
+    const entity = await this.requireWritable(slug, ctx, ability);
+    const [att] = await this.files.getLinkByIds([attachmentId], ctx);
+    if (!att) AppException.notFound('Attachment', attachmentId);
+    await this.repo.linkAttachment(entity.id, attachmentId, ctx);
+  }
+
+  async detachFile(slug: string, attachmentId: number, ctx: IDBConfigOptions, ability: AppAbility): Promise<void> {
+    const entity = await this.requireWritable(slug, ctx, ability);
+    await this.repo.unlinkAttachment(entity.id, attachmentId, ctx);
+  }
+
+  async listAttachments(slug: string, ctx: IDBConfigOptions, ability: AppAbility, user: IUserSession): Promise<IKnowledgeAttachmentRef[]> {
+    const entity = await this.requireReadableBySlug(slug, ctx, ability, user);
+    const ids = await this.repo.findAttachmentIds(entity.id, ctx);
+    return this.files.getLinkByIds(ids, ctx);
+  }
+
+  // --- task attach (read knowledge + read task to attach) ------------------
+
+  async attachToTask(slug: string, taskId: number, ctx: IDBConfigOptions, ability: AppAbility, user: IUserSession): Promise<void> {
+    const entity = await this.requireReadableBySlug(slug, ctx, ability, user);
+    const task = await this.taskRepo.findById(taskId, ctx);
+    if (!task) AppException.notFound('Task', taskId);
+    assertAbility(ability, 'read', 'Task', task as unknown as object, 'You cannot attach to this task');
+    await this.repo.linkTask(taskId, entity.id, user.id, ctx);
+  }
+
+  // --- task detach (knowledge owner/admin OR can update the task) ----------
+
+  async detachFromTask(slug: string, taskId: number, ctx: IDBConfigOptions, ability: AppAbility): Promise<void> {
+    const entity = await this.requireBySlug(slug, ctx);
+    const task = await this.taskRepo.findById(taskId, ctx);
+    if (!task) AppException.notFound('Task', taskId);
+    const canByKnowledge = ability.can('update', subject('Knowledge', entity as unknown as Record<string, unknown>));
+    const canByTask = ability.can('update', subject('Task', task as unknown as Record<string, unknown>));
+    if (!canByKnowledge && !canByTask) {
+      AppException.throw('FORBIDDEN', 'You cannot detach this knowledge from the task');
+    }
+    await this.repo.unlinkTask(taskId, entity.id, ctx);
+  }
+
+  /** Knowledge attached to a task. Caller must already be authorized to read the task. */
+  async listForTask(taskId: number, ctx: IDBConfigOptions): Promise<IKnowledgeEntity[]> {
+    const ids = await this.repo.findKnowledgeIdsForTask(taskId, ctx);
+    return this.repo.findByIds(ids, ctx);
   }
 }
