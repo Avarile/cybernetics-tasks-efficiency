@@ -4,13 +4,13 @@ import { useStore } from "~/core/hooks/use-store";
 import { PersonAvatar } from "~/core/components/common/person-avatar";
 
 export const OrgHeader = observer(function OrgHeader() {
-  const { auth, theme } = useStore();
+  const { auth, org, theme } = useStore();
 
   const user = auth.currentUser;
 
   return (
     <header className="flex items-center justify-between h-14 px-6 border-b border-gray-200 bg-white">
-      <span className="text-base font-semibold text-gray-900">Cybernetic</span>
+      <span className="text-base font-semibold text-gray-900">{org.currentOrg?.name ?? "Cybernetic"}</span>
 
       <div className="flex items-center gap-3">
         <PersonAvatar
