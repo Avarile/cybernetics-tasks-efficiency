@@ -7,12 +7,13 @@ import { AuthService } from "~/core/services/auth.service";
 
 const authService = new AuthService();
 
-interface SignInFields {
+interface SignUpFields {
+  name: string;
   email: string;
   password: string;
 }
 
-export const SignInForm = observer(() => {
+export const SignUpForm = observer(() => {
   const { auth } = useStore();
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -21,19 +22,19 @@ export const SignInForm = observer(() => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<SignInFields>();
+  } = useForm<SignUpFields>();
 
-  const onSubmit = async ({ email, password }: SignInFields) => {
+  const onSubmit = async ({ name, email, password }: SignUpFields) => {
     setErrorMessage(null);
     auth.setLoading(true);
     try {
-      const { data } = await authService.login(email, password);
+      const { data } = await authService.register(name, email, password);
       auth.setToken(data.accessToken);
       auth.setCurrentUser(data.user);
       navigate("/");
     } catch (err: unknown) {
       const axiosMsg = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
-      setErrorMessage(axiosMsg ?? "Invalid email or password.");
+      setErrorMessage(axiosMsg ?? "Registration failed. Please try again.");
     } finally {
       auth.setLoading(false);
     }
@@ -42,10 +43,24 @@ export const SignInForm = observer(() => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+          Full name
+        </label>
+        <input
+          id="name"
+          type="text"
+          autoComplete="name"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          placeholder="Jane Smith"
+          {...register("name", { required: "Name is required." })}
+        />
+        {errors.name && (
+          <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
           Email
         </label>
         <input
@@ -68,23 +83,20 @@ export const SignInForm = observer(() => {
       </div>
 
       <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
           Password
         </label>
         <input
           id="password"
           type="password"
-          autoComplete="current-password"
+          autoComplete="new-password"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           placeholder="••••••••"
           {...register("password", {
             required: "Password is required.",
             minLength: {
-              value: 6,
-              message: "Password must be at least 6 characters.",
+              value: 8,
+              message: "Password must be at least 8 characters.",
             },
           })}
         />
@@ -102,13 +114,13 @@ export const SignInForm = observer(() => {
         disabled={auth.isLoading}
         className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {auth.isLoading ? "Signing in..." : "Sign in"}
+        {auth.isLoading ? "Creating account..." : "Create account"}
       </button>
 
       <p className="text-center text-sm text-gray-500">
-        Don&apos;t have an account?{" "}
-        <Link to="/auth/sign-up" className="text-blue-600 hover:underline font-medium">
-          Sign up
+        Already have an account?{" "}
+        <Link to="/auth/sign-in" className="text-blue-600 hover:underline font-medium">
+          Sign in
         </Link>
       </p>
     </form>

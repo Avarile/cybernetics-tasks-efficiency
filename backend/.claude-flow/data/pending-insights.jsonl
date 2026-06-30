@@ -112,3 +112,15 @@
 {"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/backend/src/modules/business-logic-modules/module-tracking/projection/initiative-state.projector.spec.ts","timestamp":1782731004992,"sessionId":null}
 {"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/backend/src/modules/business-logic-modules/module-task/task.module.ts","timestamp":1782731104826,"sessionId":null}
 {"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/backend/src/modules/business-logic-modules/module-tracking/tracking.integration.spec.ts","timestamp":1782731178626,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/core/services/api.service.ts","timestamp":1782804250385,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/core/components/auth/sign-in-form.tsx","timestamp":1782804260352,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/core/components/auth/sign-up-form.tsx","timestamp":1782804264885,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/backend/src/modules/module-auth/authentication.controller.ts","timestamp":1782804269057,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/backend/src/modules/module-auth/authentication.controller.ts","timestamp":1782804275140,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/core/components/layout/app-sidebar.tsx","timestamp":1782805165071,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/app/routes/dashboard.tsx","timestamp":1782805305847,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/app/routes/objectives.tsx","timestamp":1782805306895,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/app/routes/initiatives.tsx","timestamp":1782805307923,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/app/routes/tasks.tsx","timestamp":1782805309380,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/app/routes/knowledge.tsx","timestamp":1782805310120,"sessionId":null}
+{"type":"edit","file":"/home/avarile/Documents/codeRepo/cybernetic/apps/web/app/routes.ts","timestamp":1782805317552,"sessionId":null}

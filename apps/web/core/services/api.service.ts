@@ -1,6 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3001"}/api/v1`;
+const BASE_URL = `${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:9100"}/api/v1`;
 
 export class APIService {
   protected axiosInstance: AxiosInstance;

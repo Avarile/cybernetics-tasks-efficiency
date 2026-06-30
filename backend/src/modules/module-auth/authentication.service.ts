@@ -23,6 +23,18 @@ export class AuthenticationService {
     private readonly ctx: DbContextService,
   ) {}
 
+  async register(name: string, email: string, password: string, req: Request, res: Response): Promise<{ accessToken: string; user: IUserSession }> {
+    const sys = this.ctx.system();
+    const existing = await this.accounts.findByEmail(email, sys);
+    if (existing) AppException.throw('RESOURCE_CONFLICT', 'Email is already in use');
+    const passwordHash = await this.passwords.hash(password);
+    const person = await this.accounts.createPerson({ name, email, passwordHash, role: 'member' }, sys);
+    const user = this.toSession(person);
+    const accessToken = this.tokens.signAccessToken(user);
+    await this.issueRefreshSession(user.id, req, res);
+    return { accessToken, user };
+  }
+
   async validateCredentials(email: string, password: string): Promise<IUserSession> {
     const person = await this.accounts.findByEmail(email, this.ctx.system());
     if (!person || !person.passwordHash) AppException.throw('UNAUTHORIZED', 'Invalid credentials');

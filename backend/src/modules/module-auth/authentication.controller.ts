@@ -1,11 +1,11 @@
-import { Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { AuthenticationService } from './authentication.service';
-import { LoginDTO } from './auth.dto';
+import { LoginDTO, RegisterDTO } from './auth.dto';
 import { IBaseResponse } from 'src/utils/shared/interface';
-import { buildOk } from 'src/utils/shared/response.factory';
+import { buildCreated, buildOk } from 'src/utils/shared/response.factory';
 import { Public } from 'src/common/decorators/public.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { LocalAuthGuard } from 'src/common/guards/local-auth.guard';
@@ -16,6 +16,21 @@ import { IUserSession } from './current-user-module/session.interface';
 @Controller('auth')
 export class AuthenticationController {
   constructor(private readonly authService: AuthenticationService) {}
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new account' })
+  @ApiBody({ type: RegisterDTO })
+  async register(
+    @Body() dto: RegisterDTO,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<IBaseResponse> {
+    const data = await this.authService.register(dto.name, dto.email, dto.password, req, res);
+    return buildCreated(data, 'Registration successful');
+  }
 
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })

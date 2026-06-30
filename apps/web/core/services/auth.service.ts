@@ -7,6 +7,10 @@ export interface LoginResponse {
 }
 
 export class AuthService extends APIService {
+  register(name: string, email: string, password: string) {
+    return this.post<LoginResponse>("/auth/register", { name, email, password });
+  }
+
   login(email: string, password: string) {
     return this.post<LoginResponse>("/auth/login", { email, password });
   }

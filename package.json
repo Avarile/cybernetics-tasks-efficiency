@@ -1,5 +1,5 @@
 {
   "name": "cybernetic",
   "private": true,
-  "packageManager": "pnpm@11.0.0"
+  "packageManager": "pnpm@10.13.1"
 }
