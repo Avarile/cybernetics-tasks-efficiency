@@ -11,8 +11,9 @@ function setup() {
     delete: jest.fn(),
   } as any;
   const cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as any;
-  const service = new PersonService(repo, cache);
-  return { service, repo, cache };
+  const files = { getLinkByIds: jest.fn() } as any;
+  const service = new PersonService(repo, cache, files);
+  return { service, repo, cache, files };
 }
 
 describe('PersonService cache invalidation', () => {
@@ -36,5 +37,24 @@ describe('PersonService cache invalidation', () => {
     await service.remove(7, CTX);
 
     expect(cache.del).toHaveBeenCalledWith(cacheKey.account('public', 7));
+  });
+});
+
+describe('PersonService avatar resolution', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('attachAvatarUrl resolves the avatar attachment to a url', async () => {
+    const { service, files } = setup();
+    files.getLinkByIds.mockResolvedValue([{ id: 9, slug: 's', url: 'pic://9', mimetype: 'image/png', thumbnailPath: null }]);
+    const out = await service.attachAvatarUrl({ id: 1, avatarAttachmentId: 9 } as any, CTX);
+    expect(out.avatarUrl).toBe('pic://9');
+    expect(files.getLinkByIds).toHaveBeenCalledWith([9], CTX);
+  });
+
+  it('attachAvatarUrl returns null when no avatar is set', async () => {
+    const { service, files } = setup();
+    const out = await service.attachAvatarUrl({ id: 1, avatarAttachmentId: null } as any, CTX);
+    expect(out.avatarUrl).toBeNull();
+    expect(files.getLinkByIds).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import { AppException } from 'src/utils/exception.provider';
 import { AppAbility } from 'src/common/casl/ability.types';
 import { assertAbility } from 'src/common/casl/assert-ability';
 import { cacheKey } from 'src/infra/cache/cache.constants';
+import { FileService } from 'src/modules/module-file-management/file.service';
 import { PersonRepository } from './person.repo';
 import {
   INewPerson,
@@ -20,6 +21,7 @@ export class PersonService {
   constructor(
     private readonly repo: PersonRepository,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly files: FileService,
   ) {}
 
   /**
@@ -85,5 +87,14 @@ export class PersonService {
     const entity = await this.repo.findBySlug(slug, ctx);
     if (!entity) AppException.notFound('Person', slug);
     return entity!;
+  }
+
+  async attachAvatarUrl<T extends { avatarAttachmentId?: number | null }>(
+    entity: T,
+    ctx: IDBConfigOptions,
+  ): Promise<T & { avatarUrl: string | null }> {
+    if (!entity.avatarAttachmentId) return { ...entity, avatarUrl: null };
+    const [resolved] = await this.files.getLinkByIds([entity.avatarAttachmentId], ctx);
+    return { ...entity, avatarUrl: resolved?.url ?? null };
   }
 }

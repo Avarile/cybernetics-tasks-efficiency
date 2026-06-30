@@ -54,8 +54,9 @@ export class PersonController {
     @Param() params: FindPersonByIdDTO,
     @Body() dto: UpdatePersonDTO,
   ): Promise<IBaseResponse> {
-    const updated = await this.personService.update(params.id, dto, this.ctx.forUser(user.id), ability);
-    return buildOk(updated, 'Person updated successfully');
+    const ctx = this.ctx.forUser(user.id);
+    const updated = await this.personService.update(params.id, dto, ctx, ability);
+    return buildOk(await this.personService.attachAvatarUrl(updated, ctx), 'Person updated successfully');
   }
 
   @Get()
@@ -77,23 +78,26 @@ export class PersonController {
   @CheckPolicies((a) => a.can('read', 'Person'))
   @ApiOperation({ summary: 'Get a person by name' })
   async getPersonByName(@CurrentUser() user: IUserSession, @Param() params: FindPersonByNameDTO): Promise<IBaseResponse> {
-    const result = await this.personService.requireByName(params.name, this.ctx.forUser(user.id));
-    return buildOk(result, 'Person found');
+    const ctx = this.ctx.forUser(user.id);
+    const result = await this.personService.requireByName(params.name, ctx);
+    return buildOk(await this.personService.attachAvatarUrl(result, ctx), 'Person found');
   }
 
   @Get('slug/:slug')
   @CheckPolicies((a) => a.can('read', 'Person'))
   @ApiOperation({ summary: 'Get a person by slug' })
   async getPersonBySlug(@CurrentUser() user: IUserSession, @Param() params: FindPersonBySlugDTO): Promise<IBaseResponse> {
-    const result = await this.personService.requireBySlug(params.slug, this.ctx.forUser(user.id));
-    return buildOk(result, 'Person found');
+    const ctx = this.ctx.forUser(user.id);
+    const result = await this.personService.requireBySlug(params.slug, ctx);
+    return buildOk(await this.personService.attachAvatarUrl(result, ctx), 'Person found');
   }
 
   @Get(':id')
   @CheckPolicies((a) => a.can('read', 'Person'))
   @ApiOperation({ summary: 'Get a person by ID' })
   async getPersonById(@CurrentUser() user: IUserSession, @Param() params: FindPersonByIdDTO): Promise<IBaseResponse> {
-    const result = await this.personService.requireById(params.id, this.ctx.forUser(user.id));
-    return buildOk(result, 'Person found');
+    const ctx = this.ctx.forUser(user.id);
+    const result = await this.personService.requireById(params.id, ctx);
+    return buildOk(await this.personService.attachAvatarUrl(result, ctx), 'Person found');
   }
 }
