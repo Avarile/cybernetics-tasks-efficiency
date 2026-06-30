@@ -3,6 +3,7 @@ export type UserRole = 'admin' | 'manager' | 'executive' | 'member';
 export interface IAuthSession {
   id: number;
   slug: string;
+  name?: string;
   email: string;
   role: UserRole;
   departmentId?: number | null;
@@ -11,18 +12,52 @@ export interface IAuthSession {
 
 export interface IPerson {
   id: string;
-  email: string;
+  slug: string;
+  name: string;
   firstName: string;
   lastName: string;
+  email: string;
   role: UserRole;
-  organizationId: string;
-  avatarUrl?: string;
+  position?: string | null;
+  departmentId?: string | null;
+  teamId?: string | null;
+  avatarUrl?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface IOrganization {
   id: string;
-  name: string;
   slug: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IDepartment {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  parentId?: string | null;
+  leadPersonId?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ITeam {
+  id: string;
+  slug: string;
+  name: string;
+  departmentId?: string | null;
+  leadPersonId?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface IObjective {
@@ -60,9 +95,15 @@ export interface ITask {
 
 export interface ILabel {
   id: string;
+  slug: string;
   name: string;
   color: string;
-  organizationId: string;
+  description?: string | null;
+  parentId?: string | null;
+  sortOrder?: number | null;
+  organizationId?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface IKeyResult {
