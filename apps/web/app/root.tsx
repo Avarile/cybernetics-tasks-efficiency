@@ -1,4 +1,5 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { StoreProvider } from "./provider";
 import "./styles/globals.css";
 
 export default function Root() {
@@ -10,8 +11,10 @@ export default function Root() {
         <Meta />
         <Links />
       </head>
-      <body>
-        <Outlet />
+      <body className="bg-white text-gray-900 antialiased">
+        <StoreProvider>
+          <Outlet />
+        </StoreProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
