@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useStore } from "~/core/hooks/use-store";
@@ -6,7 +6,7 @@ import { EmptyState } from "~/core/components/common/empty-state";
 import { LoadingSpinner } from "~/core/components/common/loading-spinner";
 
 export const TeamList = observer(function TeamList() {
-  const { team } = useStore();
+  const { team, department } = useStore();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -63,8 +63,8 @@ export const TeamList = observer(function TeamList() {
             const memberCount = members?.length ?? "—";
 
             return (
-              <>
-                <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+              <React.Fragment key={t.id}>
+                <tr className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <button
                       onClick={() => toggle(t.id)}
@@ -79,7 +79,7 @@ export const TeamList = observer(function TeamList() {
                     </button>
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{t.name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{t.departmentId ?? "—"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{t.departmentId ? (department.deptMap[t.departmentId]?.name ?? t.departmentId) : "—"}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{memberCount}</td>
                 </tr>
                 {isExpanded && (
@@ -105,7 +105,7 @@ export const TeamList = observer(function TeamList() {
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </tbody>

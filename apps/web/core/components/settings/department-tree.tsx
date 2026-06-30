@@ -46,6 +46,9 @@ const DeptNode = observer(function DeptNode({ dept, expandedIds, onToggle, depth
           {dept.description && (
             <p className="text-xs text-gray-500 mt-0.5">{dept.description}</p>
           )}
+          {dept.leadPersonId && (
+            <span className="text-xs text-gray-400">Lead: {dept.leadPersonId}</span>
+          )}
         </div>
       </div>
 
