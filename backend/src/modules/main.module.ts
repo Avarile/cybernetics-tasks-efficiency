@@ -11,6 +11,7 @@ import { TrackingModule } from './business-logic-modules/module-tracking/trackin
 import { InterventionModule } from './business-logic-modules/module-intervention/intervention.module';
 import { LabelModule } from './business-logic-modules/module-label/label.module';
 import { TaskModule } from './business-logic-modules/module-task/task.module';
+import { KnowledgeModule } from './business-logic-modules/module-knowledge/knowledge.module';
 import { AuthModule } from './module-auth/auth.module';
 import { FileManagementModule } from './module-file-management/file.module';
 import { EmailModule } from './module-email/email.module';
@@ -30,6 +31,7 @@ import { EmailModule } from './module-email/email.module';
     InterventionModule,
     LabelModule,
     TaskModule,
+    KnowledgeModule,
     FileManagementModule,
     EmailModule,
   ],
