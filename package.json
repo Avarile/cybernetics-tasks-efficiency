@@ -1,5 +1,5 @@
 {
   "name": "cybernetic",
   "private": true,
-  "workspaces": ["backend", "frontend"]
+  "packageManager": "pnpm@11.0.0"
 }
