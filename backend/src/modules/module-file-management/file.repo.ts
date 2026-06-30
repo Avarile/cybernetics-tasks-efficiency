@@ -66,6 +66,17 @@ export class FileRepository implements BaseRepo<IAttachmentEntity> {
     });
   }
 
+  async findByIds(ids: number[], ctx: IDBConfigOptions): Promise<IAttachmentEntity[]> {
+    if (!ids.length) return [];
+    return runQuery(this.dbProvider, ctx, async (db) => {
+      const rows = await db
+        .select({ ...getTableColumns(attachment) })
+        .from(attachment)
+        .where(and(inArray(attachment.id, ids), eq(attachment.isDeleted, false)));
+      return rows as IAttachmentEntity[];
+    });
+  }
+
   async setThumbnailPath(
     token: string,
     thumbnailPath: string,

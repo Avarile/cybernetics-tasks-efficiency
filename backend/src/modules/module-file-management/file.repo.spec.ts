@@ -35,4 +35,12 @@ describe('FileRepository (real DB)', () => {
     await repo.delete(row.id, ctx);
     expect(await repo.findById(row.id, ctx)).toBeNull();
   });
+
+  it('findByIds returns only the requested live rows', async () => {
+    const ctx = getCtx();
+    const a = await repo.create(base('tok-ids-1'), ctx);
+    const b = await repo.create(base('tok-ids-2'), ctx);
+    const rows = await repo.findByIds([a.id, b.id, 999999], ctx);
+    expect(rows.map((r) => r.id).sort()).toEqual([a.id, b.id].sort());
+  });
 });

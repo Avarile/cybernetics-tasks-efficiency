@@ -70,4 +70,17 @@ describe('FileService', () => {
     expect(repo.create).not.toHaveBeenCalled();
     expect(queue.add).not.toHaveBeenCalled();
   });
+
+  it('getLinkByIds resolves ids to preview urls with no per-attachment CASL', async () => {
+    repo.findByIds = jest.fn(async () => [
+      { id: 3, slug: 'sl-3', bucket: 'private', path: 'general/x', token: 'tk', mimetype: 'image/png', thumbnailPath: '{"sm":"s"}' },
+    ]);
+    const out = await svc.getLinkByIds([3], ctx);
+    expect(out).toEqual([
+      { id: 3, slug: 'sl-3', url: 'signed://url', mimetype: 'image/png', thumbnailPath: '{"sm":"s"}' },
+    ]);
+    expect(storageSvc.getPreviewUrlByPath).toHaveBeenCalledWith(
+      'public', 'private', 'general/x', 'tk', undefined, { 'Content-Type': 'image/png' },
+    );
+  });
 });

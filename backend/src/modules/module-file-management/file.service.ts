@@ -185,6 +185,30 @@ export class FileService {
     return row!;
   }
 
+  /**
+   * Resolve attachment ids to preview URLs WITHOUT a per-attachment CASL check.
+   * The caller (person/knowledge service) has already authorized access at its
+   * own level, so re-checking the owner-only `read Attachment` rule here would
+   * wrongly reject teammates who can see a shared note but did not upload it.
+   */
+  async getLinkByIds(
+    ids: number[],
+    ctx: IDBConfigOptions,
+  ): Promise<Array<{ id: number; slug: string; url: string; mimetype: string; thumbnailPath: string | null }>> {
+    const rows = await this.repo.findByIds(ids, ctx);
+    return Promise.all(
+      rows.map(async (r) => ({
+        id: r.id,
+        slug: r.slug,
+        mimetype: r.mimetype,
+        thumbnailPath: r.thumbnailPath,
+        url: await this.storage.getPreviewUrlByPath(
+          ctx.schema_id, r.bucket, r.path, r.token, undefined, { 'Content-Type': r.mimetype },
+        ),
+      })),
+    );
+  }
+
   async getLink(slug: string, ctx: IDBConfigOptions, ability: AppAbility): Promise<string> {
     const row = await this.requireBySlugAuthorized(slug, ctx, ability);
     return this.storage.getPreviewUrlByPath(ctx.schema_id, row.bucket, row.path, row.token, undefined, {
