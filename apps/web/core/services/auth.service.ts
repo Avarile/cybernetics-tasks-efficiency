@@ -1,9 +1,9 @@
-import type { IPerson } from "@cybernetic/types";
+import type { IAuthSession } from "@cybernetic/types";
 import { APIService } from "./api.service";
 
-interface LoginResponse {
+export interface LoginResponse {
   accessToken: string;
-  person: IPerson;
+  user: IAuthSession;
 }
 
 export class AuthService extends APIService {
@@ -16,10 +16,10 @@ export class AuthService extends APIService {
   }
 
   me() {
-    return this.get<IPerson>("/auth/me");
+    return this.get<IAuthSession>("/auth/me");
   }
 
   refresh() {
-    return this.post<LoginResponse>("/auth/refresh");
+    return this.post<{ accessToken: string }>("/auth/refresh");
   }
 }

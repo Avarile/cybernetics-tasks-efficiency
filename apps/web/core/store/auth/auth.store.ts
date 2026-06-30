@@ -1,9 +1,9 @@
 import { action, computed, makeObservable, observable } from "mobx";
-import type { IPerson } from "@cybernetic/types";
+import type { IAuthSession } from "@cybernetic/types";
 import type { RootStore } from "../root.store";
 
 export class AuthStore {
-  currentUser: IPerson | null = null;
+  currentUser: IAuthSession | null = null;
   isLoading = false;
   token: string | null = null;
 
@@ -24,7 +24,7 @@ export class AuthStore {
     return !!this.currentUser;
   }
 
-  setCurrentUser = (user: IPerson | null) => {
+  setCurrentUser = (user: IAuthSession | null) => {
     this.currentUser = user;
   };
 

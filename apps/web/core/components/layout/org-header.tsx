@@ -14,9 +14,7 @@ export const OrgHeader = observer(function OrgHeader() {
 
       <div className="flex items-center gap-3">
         <PersonAvatar
-          firstName={user?.firstName ?? "?"}
-          lastName={user?.lastName ?? ""}
-          avatarUrl={user?.avatarUrl}
+          email={user?.email}
           size="md"
         />
 

@@ -1,8 +1,5 @@
-import { initials } from "@cybernetic/utils";
-
 interface PersonAvatarProps {
-  firstName: string;
-  lastName: string;
+  email?: string;
   avatarUrl?: string;
   size?: "sm" | "md" | "lg";
 }
@@ -13,9 +10,13 @@ const sizeClasses = {
   lg: "h-12 w-12 text-base",
 };
 
+function emailInitials(email?: string): string {
+  if (!email) return "?";
+  return email[0]?.toUpperCase() ?? "?";
+}
+
 export function PersonAvatar({
-  firstName,
-  lastName,
+  email,
   avatarUrl,
   size = "md",
 }: PersonAvatarProps) {
@@ -25,7 +26,7 @@ export function PersonAvatar({
     return (
       <img
         src={avatarUrl}
-        alt={`${firstName} ${lastName}`}
+        alt={email ?? "User avatar"}
         className={`${cls} rounded-full object-cover`}
       />
     );
@@ -35,7 +36,7 @@ export function PersonAvatar({
     <div
       className={`${cls} rounded-full bg-blue-600 flex items-center justify-center text-white font-medium`}
     >
-      {initials(firstName, lastName)}
+      {emailInitials(email)}
     </div>
   );
 }

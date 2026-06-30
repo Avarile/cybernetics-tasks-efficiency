@@ -1,4 +1,13 @@
-export type UserRole = 'admin' | 'manager' | 'exec' | 'member';
+export type UserRole = 'admin' | 'manager' | 'executive' | 'member';
+
+export interface IAuthSession {
+  id: number;
+  slug: string;
+  email: string;
+  role: UserRole;
+  departmentId?: number | null;
+  teamId?: number | null;
+}
 
 export interface IPerson {
   id: string;

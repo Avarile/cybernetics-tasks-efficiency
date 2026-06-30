@@ -18,6 +18,22 @@ export class APIService {
       }
       return config;
     });
+
+    this.axiosInstance.interceptors.response.use(
+      (response) => {
+        if (response.data && "data" in response.data && "status_code" in response.data) {
+          response.data = response.data.data;
+        }
+        return response;
+      },
+      (error) => {
+        if (error.response?.status === 401) {
+          localStorage.removeItem("auth_token");
+          window.location.href = "/auth/sign-in";
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   get<T>(url: string, params?: Record<string, unknown>, config?: AxiosRequestConfig) {

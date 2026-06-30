@@ -29,7 +29,7 @@ export const SignInForm = observer(() => {
     try {
       const { data } = await authService.login(email, password);
       auth.setToken(data.accessToken);
-      auth.setCurrentUser(data.person);
+      auth.setCurrentUser(data.user);
       navigate("/");
     } catch (err: unknown) {
       const message =
