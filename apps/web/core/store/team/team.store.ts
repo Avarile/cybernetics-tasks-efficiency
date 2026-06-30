@@ -46,13 +46,8 @@ export class TeamStore {
   };
 
   fetchMembers = async (id: string) => {
-    this.isLoading = true;
-    try {
-      const { data } = await teamService.getMembers(id);
-      this.memberMap = { ...this.memberMap, [id]: data };
-    } finally {
-      this.isLoading = false;
-    }
+    const { data } = await teamService.getMembers(id);
+    this.memberMap = { ...this.memberMap, [id]: data };
   };
 
   reset = () => {

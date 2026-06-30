@@ -46,20 +46,15 @@ export class DepartmentStore {
   };
 
   fetchChildren = async (id: string) => {
-    this.isLoading = true;
-    try {
-      const { data } = await deptService.getChildren(id);
-      const map: Record<string, IDepartment> = {};
-      const ids: string[] = [];
-      for (const dept of data) {
-        map[dept.id] = dept;
-        ids.push(dept.id);
-      }
-      this.deptMap = { ...this.deptMap, ...map };
-      this.childMap = { ...this.childMap, [id]: ids };
-    } finally {
-      this.isLoading = false;
+    const { data } = await deptService.getChildren(id);
+    const map: Record<string, IDepartment> = {};
+    const ids: string[] = [];
+    for (const dept of data) {
+      map[dept.id] = dept;
+      ids.push(dept.id);
     }
+    this.deptMap = { ...this.deptMap, ...map };
+    this.childMap = { ...this.childMap, [id]: ids };
   };
 
   reset = () => {

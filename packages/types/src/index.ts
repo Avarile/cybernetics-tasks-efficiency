@@ -6,6 +6,7 @@ export interface IAuthSession {
   name?: string;
   email: string;
   role: UserRole;
+  // auth session uses sequence IDs; IDepartment/ITeam use UUID strings
   departmentId?: number | null;
   teamId?: number | null;
 }

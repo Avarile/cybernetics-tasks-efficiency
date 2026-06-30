@@ -10,7 +10,7 @@ const OrgLayout = observer(() => {
 
   useEffect(() => {
     if (orgSlug) org.fetchBySlug(orgSlug);
-  }, [orgSlug]);
+  }, [orgSlug, org]);
 
   if (org.isLoading && !org.currentOrg) {
     return (
