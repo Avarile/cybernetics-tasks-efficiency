@@ -11,6 +11,14 @@ export interface IPersonProfile {
   role: 'admin' | 'manager' | 'member' | 'executive';
   departmentId?: number | null;
   teamId?: number | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  position?: string | null;
+  avatarAttachmentId?: number | null;
+  description?: string | null;
+  note?: string | null;
+  phone?: string | null;
+  timezone?: string | null;
 }
 
 export interface INewPerson extends IPersonProfile {

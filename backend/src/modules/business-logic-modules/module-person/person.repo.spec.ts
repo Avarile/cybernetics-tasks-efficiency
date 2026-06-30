@@ -123,4 +123,20 @@ describe('PersonRepository (real DB)', () => {
     expect(found).not.toBeNull();
     expect(found?.id).toBe(created.id);
   });
+
+  it('round-trips the expanded profile fields through update', async () => {
+    const ctx = getCtx();
+    const created = await repo.create(
+      { name: 'Jo', email: `jo-${Date.now()}@x.com`, role: 'member' },
+      ctx,
+    );
+    const updated = await repo.update(
+      created.id,
+      { firstName: 'Jo', lastName: 'Lee', position: 'CTO', description: 'bio', note: 'n', phone: '+100', timezone: 'UTC', avatarAttachmentId: 0 },
+      ctx,
+    );
+    expect(updated.firstName).toBe('Jo');
+    expect(updated.position).toBe('CTO');
+    expect(updated.timezone).toBe('UTC');
+  });
 });

@@ -125,6 +125,30 @@ export class UpdatePersonDTO implements IUpdatePerson {
   @IsNumber()
   teamId?: number | null;
 
+  @ApiProperty({ description: 'First name', required: false })
+  @IsOptional() @IsString() firstName?: string | null;
+
+  @ApiProperty({ description: 'Last name', required: false })
+  @IsOptional() @IsString() lastName?: string | null;
+
+  @ApiProperty({ description: 'Job title / position (free text)', required: false })
+  @IsOptional() @IsString() position?: string | null;
+
+  @ApiProperty({ description: 'Avatar attachment id', required: false })
+  @IsOptional() @IsNumber() avatarAttachmentId?: number | null;
+
+  @ApiProperty({ description: 'Self-description / bio', required: false })
+  @IsOptional() @IsString() description?: string | null;
+
+  @ApiProperty({ description: 'Free-form note', required: false })
+  @IsOptional() @IsString() note?: string | null;
+
+  @ApiProperty({ description: 'Phone number', required: false })
+  @IsOptional() @IsString() phone?: string | null;
+
+  @ApiProperty({ description: 'IANA timezone', required: false })
+  @IsOptional() @IsString() timezone?: string | null;
+
   @ApiProperty({ description: 'Is active flag', required: false })
   @IsOptional()
   @IsBoolean()

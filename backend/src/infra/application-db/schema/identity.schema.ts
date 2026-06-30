@@ -26,6 +26,14 @@ export const team = pgTable('team', {
 
 export const person = pgTable('person', {
   name: varchar('name', { length: 255 }).notNull(),
+  firstName: varchar('first_name', { length: 128 }),
+  lastName: varchar('last_name', { length: 128 }),
+  position: varchar('position', { length: 128 }),
+  avatarAttachmentId: integer('avatar_attachment_id'),
+  description: text('description'),
+  note: text('note'),
+  phone: varchar('phone', { length: 40 }),
+  timezone: varchar('timezone', { length: 64 }),
   email: varchar('email', { length: 320 }).notNull(),
   passwordHash: varchar('password_hash', { length: 255 }),
   role: personRole('role').notNull().default('member'),
