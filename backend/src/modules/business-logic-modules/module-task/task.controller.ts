@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { TaskService } from './task.service';
+import { KnowledgeService } from '../module-knowledge/knowledge.service';
 import {
   NewTaskDTO, UpdateTaskDTO, QueryTaskDTO, FindTaskByIdDTO, FindTaskBySlugDTO, TaskAssigneeDTO, TaskLabelDTO,
 } from './task.dto';
@@ -19,6 +20,7 @@ import { DbContextService } from 'src/infra/application-db/db-context';
 export class TaskController {
   constructor(
     private readonly taskService: TaskService,
+    private readonly knowledgeService: KnowledgeService,
     private readonly ctx: DbContextService,
   ) {}
 
@@ -139,6 +141,20 @@ export class TaskController {
   ): Promise<IBaseResponse> {
     await this.taskService.remove(params.id, this.ctx.forUser(user.id), ability);
     return buildOk(null, 'Task deleted successfully');
+  }
+
+  @Get('slug/:slug/knowledge')
+  @CheckPolicies((a) => a.can('read', 'Task'))
+  @ApiOperation({ summary: 'List knowledge attached to a task' })
+  async listKnowledge(
+    @CurrentUser() user: IUserSession,
+    @CurrentAbility() ability: AppAbility,
+    @Param('slug') slug: string,
+  ): Promise<IBaseResponse> {
+    const ctx = this.ctx.forUser(user.id);
+    const task = await this.taskService.requireBySlugAuthorized(slug, ctx, ability);
+    const items = await this.knowledgeService.listForTask(task.id, ctx);
+    return buildOk(items, 'Task knowledge retrieved');
   }
 
   @Get(':id')
