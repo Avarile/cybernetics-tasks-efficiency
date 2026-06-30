@@ -1,0 +1,551 @@
+# Cybernetic Frontend Design
+
+## 1. Tech Stack
+
+Mirrors Plane's conventions closely. Where Plane uses workspace-scoped features, Cybernetic replaces with org-scoped equivalents.
+
+| Layer | Library | Version |
+|-------|---------|---------|
+| Framework | React | 19.x |
+| Router | React Router | v7.x (SPA, `ssr: false`) |
+| Build | Vite | 8.x |
+| Language | TypeScript | 5.8.x (strict) |
+| State | MobX | 6.12.x |
+| Styling | Tailwind CSS | 4.x |
+| Data Fetching | SWR + Axios | SWR 2.x, Axios 1.x |
+| Forms | React Hook Form | 7.x |
+| Rich Text | TipTap | 2.22.x |
+| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | 1.7.x |
+| Icons | Lucide React | 0.469.x |
+| Accessible UI | @headlessui/react | 1.7.x |
+| Charts | Recharts | 2.x |
+| Date | date-fns | 3.x |
+| Package Manager | pnpm | 11.x |
+
+---
+
+## 2. Monorepo Layout
+
+```
+cybernetic/
+├── backend/                        # Existing NestJS API
+├── apps/
+│   ├── web/                        # Main OKR + task management SPA (port 3000)
+│   └── admin/                      # Admin panel SPA (port 3001)
+├── packages/
+│   ├── ui/                         # @cybernetic/ui — shared component primitives
+│   ├── types/                      # @cybernetic/types — shared TypeScript interfaces
+│   └── utils/                      # @cybernetic/utils — shared utility functions
+├── package.json
+└── pnpm-workspace.yaml
+```
+
+### apps/web structure
+```
+apps/web/
+├── app/
+│   ├── (home)/                     # Public auth routes
+│   ├── (all)/                      # Authenticated routes
+│   ├── routes/
+│   │   ├── core.ts                 # Route definitions
+│   │   └── helper.ts
+│   ├── layout.tsx                  # Root layout (providers, meta)
+│   ├── root.tsx
+│   ├── provider.tsx                # Store + SWR + theme providers
+│   └── entry.client.tsx
+├── core/
+│   ├── components/                 # Feature components (see Section 7)
+│   ├── hooks/                      # Custom React hooks
+│   ├── services/                   # Axios API service classes
+│   ├── store/                      # MobX domain stores
+│   └── layouts/                    # Layout wrapper components
+├── helpers/                        # Pure utility functions
+├── styles/
+├── public/
+├── vite.config.ts
+├── react-router.config.ts          # { ssr: false }
+└── tsconfig.json
+```
+
+### apps/admin structure
+```
+apps/admin/
+├── app/
+│   ├── (all)/
+│   ├── root.tsx
+│   ├── routes.ts
+│   └── entry.client.tsx
+├── components/
+│   ├── authentication/
+│   ├── organizations/
+│   ├── persons/
+│   └── settings/
+├── hooks/
+├── store/
+│   ├── root.store.ts
+│   ├── auth.store.ts
+│   ├── organization.store.ts
+│   ├── person.store.ts
+│   └── theme.store.ts
+├── helpers/
+├── styles/
+└── vite.config.ts
+```
+
+---
+
+## 3. apps/web Route Tree
+
+```
+/auth/sign-in                             # Public — login form
+/auth/sign-up                             # Public — register form (admin invite only)
+
+/(authenticated)/
+└── layout.tsx                            # Auth guard, root store init, sidebar shell
+
+    /[orgSlug]/
+    └── layout.tsx                        # Org context provider, org-level sidebar nav
+
+        /dashboard                        # OKR health overview, my tasks, recent events
+        │   page.tsx
+
+        /objectives/
+        │   layout.tsx                    # Objectives sidebar filter panel
+        │   page.tsx                      # Objectives list (all / by scope)
+        └── [objectiveSlug]/
+            │   layout.tsx                # Objective detail shell
+            │   page.tsx                  # Objective overview (title, owner, period, progress)
+            ├── key-results/
+            │   page.tsx                  # KRs for this objective (list + progress bars)
+            │   └── [krSlug]/
+            │       page.tsx              # KR detail (measurement history, linked initiatives)
+            └── tree/
+                page.tsx                  # OKR alignment tree visualization
+
+        /initiatives/
+        │   layout.tsx                    # Initiatives filter sidebar
+        │   page.tsx                      # All initiatives (grouped by status or KR)
+        └── [initiativeSlug]/
+            │   layout.tsx                # Initiative detail shell (lifecycle action bar)
+            │   page.tsx                  # Initiative overview
+            ├── tasks/
+            │   page.tsx                  # Task list / kanban under this initiative
+            └── timeline/
+                page.tsx                  # Activity timeline (event-sourced events)
+
+        /tasks/
+        │   layout.tsx                    # Task filters, group-by, sort panel
+        │   page.tsx                      # All-tasks view (list / kanban layouts)
+        └── [taskSlug]/
+            page.tsx                      # Task detail (assignees, labels, knowledge, lifecycle)
+
+        /knowledge/
+        │   layout.tsx
+        │   page.tsx                      # Knowledge list (mine + shared + org)
+        └── [knowledgeSlug]/
+            page.tsx                      # Knowledge detail (TipTap editor, attachments, links)
+
+        /interventions/
+        │   page.tsx                      # All interventions list
+        └── [interventionSlug]/
+            page.tsx                      # Intervention detail + linked KRs
+
+        /analytics/
+            page.tsx                      # OKR progress charts (Recharts), initiative health
+
+        /settings/
+        │   layout.tsx
+        ├── /members                      # Person list + invite (managers/admins)
+        ├── /teams                        # Team CRUD + member assignment
+        ├── /departments                  # Department hierarchy tree
+        └── /labels                       # Label list + color management
+```
+
+---
+
+## 4. apps/admin Route Tree
+
+```
+/auth/sign-in                             # Admin login
+
+/(authenticated)/
+└── layout.tsx                            # Admin shell
+
+    /organizations/
+    │   page.tsx                          # Org list (create/edit/delete)
+    └── [orgId]/
+        page.tsx                          # Org detail + slug management
+
+    /persons/
+    │   page.tsx                          # All persons (create/edit/delete/soft-delete)
+    └── [personId]/
+        page.tsx                          # Person detail + role assignment
+
+    /settings/
+    │   page.tsx                          # System settings overview
+    └── /mail
+        page.tsx                          # SMTP config + test transport
+```
+
+---
+
+## 5. MobX Store Architecture
+
+### Root Store (`CoreRootStore`)
+Single class composed from all domain stores. Passed via React context through `StoreContext`. Each store receives a back-reference to the root for cross-store access. Implements `resetOnSignOut()`.
+
+```
+store/
+├── root.store.ts
+├── auth/
+│   └── auth.store.ts           # currentUser, isAuthenticated, login(), logout()
+├── org/
+│   └── organization.store.ts   # currentOrg, orgMap, fetchOrg(), updateOrg()
+├── department/
+│   └── department.store.ts     # deptMap, rootDepts, fetchDepts(), fetchChildren()
+├── team/
+│   └── team.store.ts           # teamMap, fetchTeams(), fetchMembers()
+├── person/
+│   └── person.store.ts         # personMap, fetchPersons(), searchPersons()
+├── objective/
+│   └── objective.store.ts      # objectiveMap, fetchObjectives(), fetchByScope()
+├── key-result/
+│   └── key-result.store.ts     # krMap, fetchKRs(), updateValue(), fetchByObjective()
+├── initiative/
+│   └── initiative.store.ts     # initiativeMap, fetchInitiatives(), linkKR(), unlinkKR()
+├── task/
+│   └── task.store.ts           # taskMap, groupedTaskIds, fetchTasks(), quickAdd()
+├── tracking/
+│   └── tracking.store.ts       # timelineMap, lifecycle actions (start/pause/complete/block)
+├── knowledge/
+│   └── knowledge.store.ts      # knowledgeMap, fetchKnowledge(), attachTask()
+├── intervention/
+│   └── intervention.store.ts   # interventionMap, linkKR(), unlinkKR()
+├── alignment/
+│   └── alignment.store.ts      # treeData, fetchTree(), link(), unlink()
+├── label/
+│   └── label.store.ts          # labelMap, fetchLabels(), createLabel()
+├── file/
+│   └── file.store.ts           # pendingUploads, requestSignature(), confirmUpload()
+├── theme/
+│   └── theme.store.ts          # mode (light/dark), toggle()
+└── router/
+    └── router.store.ts         # currentPath, push(), replace()
+```
+
+### Store Conventions (mirror Plane)
+- All stores are MobX `makeObservable` classes
+- Maps keyed by ID: `@observable.ref objectiveMap: Record<string, IObjective> = {}`
+- Actions: `@action fetchObjectives = async () => {}`
+- Computed views: `@computed get activeObjectives() { ... }`
+- Component access: `const { objective } = useStore()` (hook over `useContext(StoreContext)`)
+
+---
+
+## 6. Service Layer
+
+All services extend a shared `APIService` base class (mirrors Plane's pattern).
+
+### Base Service
+```typescript
+// core/services/api.service.ts
+class APIService {
+  protected baseURL: string;   // VITE_API_BASE_URL + "/api/v1"
+  protected axiosInstance;     // withCredentials: true
+
+  // Interceptors:
+  //   response 401 → clear auth store + redirect /auth/sign-in
+  //   request → attach Bearer token from auth store
+
+  get(url, params?, config?)
+  post(url, data?, config?)
+  patch(url, data?, config?)
+  put(url, data?, config?)
+  delete(url, config?)
+}
+```
+
+### Domain Services
+```
+core/services/
+├── api.service.ts              # Base class
+├── auth.service.ts             # POST /auth/login|logout|refresh; GET /auth/me
+├── organization.service.ts     # CRUD /organizations + search
+├── department.service.ts       # CRUD /departments + roots + children
+├── team.service.ts             # CRUD /teams + members
+├── person.service.ts           # CRUD /persons + search
+├── objective.service.ts        # CRUD /objectives + search + scope + owner
+├── key-result.service.ts       # CRUD /key-results + value update + by-objective
+├── initiative.service.ts       # CRUD /initiatives + search + KR linking
+├── task.service.ts             # CRUD /tasks + search + summary + assignees + labels + knowledge
+├── tracking.service.ts         # All /tracking/* lifecycle + measure + timeline endpoints
+├── knowledge.service.ts        # CRUD /knowledge + shares + links + attachments + task attach
+├── intervention.service.ts     # CRUD /interventions + KR linking
+├── alignment.service.ts        # GET /okr/tree/:slug; POST/POST /alignment/link|unlink
+├── label.service.ts            # CRUD /labels
+└── file.service.ts             # /files/signature + notify + link + metadata + delete
+```
+
+---
+
+## 7. Component Inventory
+
+```
+core/components/
+├── auth/
+│   ├── SignInForm.tsx               # Email + password form (React Hook Form)
+│   ├── AuthLayout.tsx               # Centered card wrapper for auth pages
+│   └── AuthGuard.tsx                # Redirects unauthenticated users
+
+├── layout/
+│   ├── AppSidebar.tsx               # Collapsible nav: objectives, initiatives, tasks, knowledge
+│   ├── OrgHeader.tsx                # Org name, user avatar, theme toggle
+│   ├── BreadcrumbNav.tsx            # Dynamic breadcrumbs from route params
+│   └── PageContainer.tsx            # Max-width + padding wrapper
+
+├── dashboard/
+│   ├── OKRHealthCard.tsx            # Aggregate objective progress ring
+│   ├── MyTasksWidget.tsx            # Current user's open tasks
+│   ├── InitiativeStatusChart.tsx    # Recharts bar chart of initiative statuses
+│   └── RecentActivityFeed.tsx       # Latest tracking events across all entities
+
+├── objectives/
+│   ├── ObjectiveList.tsx            # Filterable list with progress bars
+│   ├── ObjectiveCard.tsx            # Summary card (title, owner, period, % complete)
+│   ├── ObjectiveDetail.tsx          # Detail view with tabs for KRs, alignment
+│   ├── ObjectiveForm.tsx            # Create/edit form
+│   └── ObjectiveScopeFilter.tsx     # Filter by org/dept/team scope
+
+├── key-results/
+│   ├── KRList.tsx                   # KRs for a given objective
+│   ├── KRProgressBar.tsx            # Visual progress from start → target
+│   ├── KRMeasurementForm.tsx        # Log a measurement (current value + note)
+│   ├── KRDetail.tsx                 # Detail with measurement history
+│   └── KRForm.tsx                   # Create/edit key result
+
+├── initiatives/
+│   ├── InitiativeList.tsx           # Filterable list with status badges
+│   ├── InitiativeCard.tsx           # Summary (title, status, task roll-up)
+│   ├── InitiativeDetail.tsx         # Detail shell with lifecycle action bar
+│   ├── InitiativeForm.tsx           # Create/edit
+│   ├── InitiativeLifecycleBar.tsx   # Start / Pause / Resume / Block / Complete / Cancel
+│   └── InitiativeKRLinker.tsx       # Modal to link/unlink key results
+
+├── tasks/
+│   ├── TaskListRoot.tsx             # Entrypoint — selects list vs kanban view
+│   ├── TaskListView.tsx             # Grouped list (by status / assignee / label)
+│   ├── TaskKanbanView.tsx           # Column kanban (by status)
+│   ├── TaskCard.tsx                 # Compact task row (title, assignees, labels, priority)
+│   ├── TaskDetail.tsx               # Full task detail panel (side drawer)
+│   ├── TaskForm.tsx                 # Create/edit form
+│   ├── TaskLifecycleBar.tsx         # Start / Pause / Complete / Block / Cancel
+│   ├── TaskQuickAdd.tsx             # Inline quick-add at bottom of list group
+│   ├── TaskFilters.tsx              # Filter bar (status, assignee, label, priority)
+│   ├── TaskAssigneeSelector.tsx     # Person search + assign
+│   └── TaskLabelSelector.tsx        # Label multi-select dropdown
+
+├── tracking/
+│   ├── ActivityTimeline.tsx         # Ordered list of tracking events
+│   ├── ActivityEventItem.tsx        # Single event row (icon, text, timestamp)
+│   ├── TimeLogForm.tsx              # Log time on initiative/task
+│   └── OutcomeForm.tsx              # Record outcome on completed initiative
+
+├── knowledge/
+│   ├── KnowledgeList.tsx            # List (mine / shared / org tabs)
+│   ├── KnowledgeCard.tsx            # Summary card (title, visibility badge, updated)
+│   ├── KnowledgeDetail.tsx          # TipTap rich text viewer/editor
+│   ├── KnowledgeForm.tsx            # Create/edit (title, body, visibility)
+│   ├── KnowledgeAttachments.tsx     # File attachment list + upload trigger
+│   ├── KnowledgeLinks.tsx           # External link list + add form
+│   ├── KnowledgeSharePanel.tsx      # Share with specific persons
+│   └── KnowledgeTaskLinker.tsx      # Attach/detach tasks
+
+├── interventions/
+│   ├── InterventionList.tsx
+│   ├── InterventionDetail.tsx
+│   ├── InterventionForm.tsx
+│   └── InterventionKRLinker.tsx
+
+├── alignment/
+│   ├── OKRTreeView.tsx              # Recharts TreeMap or custom D3 tree
+│   ├── AlignmentLinkModal.tsx       # Modal to create/remove alignment links
+│   └── OKRTreeNode.tsx              # Single node in the alignment visualization
+
+├── settings/
+│   ├── MemberList.tsx               # Person list + invite + role edit
+│   ├── TeamList.tsx                 # Team CRUD with member assignment
+│   ├── DepartmentTree.tsx           # Hierarchical dept tree (parent/children)
+│   └── LabelList.tsx                # Label list + color picker
+
+├── files/
+│   ├── FileUploadButton.tsx         # Triggers presigned URL flow
+│   ├── AttachmentItem.tsx           # File row with preview link + delete
+│   └── useFileUpload.ts             # Hook: requestSignature → PUT → notify
+
+└── common/
+    ├── EmptyState.tsx               # Illustration + CTA for empty lists
+    ├── LoadingSpinner.tsx
+    ├── ConfirmModal.tsx             # Generic destructive-action confirmation
+    ├── SlugBadge.tsx                # Displays TASK-123 / OBJ-1 style IDs
+    ├── StatusBadge.tsx              # Color-coded status chip
+    ├── PriorityBadge.tsx            # Priority icon + label
+    ├── PersonAvatar.tsx             # Avatar with initials fallback
+    └── SearchInput.tsx              # Debounced search input
+```
+
+---
+
+## 8. Key Patterns
+
+### Observer + Hook pattern (mirrors Plane)
+```typescript
+// Store hook
+export const useStore = () => useContext(StoreContext);
+
+// Component
+const TaskListRoot = observer(() => {
+  const { task, auth } = useStore();
+
+  useEffect(() => {
+    task.fetchTasks({ initiativeId: params.slug });
+  }, [params.slug]);
+
+  return <TaskListView groupedIds={task.groupedTaskIds} />;
+});
+```
+
+### Permission hook
+```typescript
+// core/hooks/use-permissions.ts
+export const usePermissions = () => {
+  const { auth } = useStore();
+  return {
+    can: (action: string, subject: string) =>
+      auth.currentUser?.role === 'admin' ||
+      checkCASL(auth.currentUser?.role, action, subject),
+    isAdmin: auth.currentUser?.role === 'admin',
+    isManager: ['admin', 'manager'].includes(auth.currentUser?.role),
+  };
+};
+
+// Usage in component
+const { can } = usePermissions();
+{can('create', 'Task') && <TaskForm />}
+```
+
+### Form pattern (React Hook Form)
+```typescript
+const { register, handleSubmit, formState: { errors } } = useForm<CreateTaskDto>();
+const onSubmit = handleSubmit(async (data) => {
+  await task.createTask(data);
+  onClose();
+});
+```
+
+### SWR for read-heavy data (mirrors Plane)
+```typescript
+// For data that benefits from automatic revalidation
+const { data: labels } = useSWR('/api/v1/labels', labelService.list);
+```
+
+### File upload flow
+```
+1. FileUploadButton → fileService.requestSignature({ filename, mimeType, size })
+2. Server returns { token, uploadUrl }
+3. Client PUTs file to uploadUrl
+4. Client POSTs /files/notify/:token to persist
+5. Server returns attachment metadata → append to local state
+```
+
+### Naming conventions (identical to Plane)
+- Files: `kebab-case.tsx`
+- Components: `PascalCase`
+- Hooks: `use-kebab-case.ts`
+- Stores: `domain.store.ts`
+- Services: `domain.service.ts`
+- Path aliases: `@/*` → `src/*`
+
+---
+
+## 9. Backend API Mapping
+
+| Frontend Module | Backend Endpoints Called |
+|----------------|--------------------------|
+| Auth | `POST /auth/login`, `POST /auth/logout`, `POST /auth/refresh`, `GET /auth/me` |
+| Persons | `GET /persons`, `POST /persons/search`, `POST /persons`, `PATCH /persons/:id`, `DELETE /persons/:id` |
+| Organizations | `GET /organizations/slug/:slug`, `PATCH /organizations/:id` |
+| Departments | `GET /departments/roots`, `GET /departments/:id/children`, `POST /departments`, `PATCH /departments/:id`, `DELETE /departments/:id` |
+| Teams | `GET /teams`, `POST /teams`, `GET /teams/:id/members`, `PATCH /teams/:id`, `DELETE /teams/:id` |
+| Objectives | `GET /objectives`, `POST /objectives/search`, `POST /objectives/scope`, `POST /objectives`, `PATCH /objectives/:id`, `DELETE /objectives/:id`, `GET /objectives/slug/:slug` |
+| Key Results | `GET /key-results/objective/:objectiveId`, `POST /key-results`, `PATCH /key-results/:id`, `PATCH /key-results/:id/value`, `DELETE /key-results/:id` |
+| Initiatives | `GET /initiatives`, `POST /initiatives/search`, `POST /initiatives`, `PATCH /initiatives/:id`, `DELETE /initiatives/:id`, `GET /initiatives/slug/:slug`, `POST /initiatives/:slug/key-results`, `DELETE /initiatives/:slug/key-results/:krId` |
+| Tasks | `POST /tasks/search`, `GET /tasks/summary`, `POST /tasks`, `PATCH /tasks/:id`, `DELETE /tasks/:id`, `GET /tasks/slug/:slug`, `POST /tasks/:slug/assignees`, `DELETE /tasks/:slug/assignees/:personId`, `POST /tasks/:slug/labels`, `DELETE /tasks/:slug/labels/:labelId` |
+| Tracking | `POST /tracking/initiatives/:slug/{start\|pause\|resume\|block\|unblock\|complete\|cancel}`, `POST /tracking/initiatives/:slug/{time\|reason\|outcome}`, `GET /tracking/initiatives/:slug/timeline`, `POST /tracking/key-results/:slug/measure`, `POST /tracking/tasks/:slug/{start\|pause\|resume\|block\|unblock\|complete\|cancel}`, `POST /tracking/tasks/:slug/time`, `GET /tracking/tasks/:slug/timeline` |
+| Knowledge | `POST /knowledge/search`, `POST /knowledge`, `GET /knowledge/:slug`, `PATCH /knowledge/:slug`, `DELETE /knowledge/:slug`, `POST /knowledge/:slug/shares`, `DELETE /knowledge/:slug/shares/:personId`, `POST /knowledge/:slug/links`, `GET /knowledge/:slug/links`, `DELETE /knowledge/:slug/links/:linkId`, `POST /knowledge/:slug/attachments`, `GET /knowledge/:slug/attachments`, `DELETE /knowledge/:slug/attachments/:attachmentId`, `POST /knowledge/:slug/tasks`, `DELETE /knowledge/:slug/tasks/:taskId` |
+| Interventions | `GET /interventions`, `POST /interventions`, `GET /interventions/slug/:slug`, `PATCH /interventions/:id`, `DELETE /interventions/:id`, `POST /interventions/:slug/key-results`, `DELETE /interventions/:slug/key-results/:krId` |
+| Alignment | `GET /okr/tree/:objectiveSlug`, `POST /alignment/link`, `POST /alignment/unlink` |
+| Labels | `GET /labels`, `POST /labels`, `PATCH /labels/:id`, `DELETE /labels/:id` |
+| Files | `POST /files/signature`, `POST /files/notify/:token`, `GET /files/:slug/link`, `GET /files/:slug`, `DELETE /files/:slug` |
+
+---
+
+## 10. Implementation Phases
+
+### Phase 1 — Foundation (auth + shell)
+- Monorepo setup: `pnpm-workspace.yaml`, shared `packages/ui` + `packages/types`
+- `apps/web`: Vite + React Router v7 config, TypeScript, Tailwind
+- Root store + `StoreContext` provider
+- `APIService` base class + `AuthService`
+- Auth routes: `/auth/sign-in`, auth guard, `AuthStore`
+- App shell: `AppSidebar`, `OrgHeader`, `PageContainer`
+
+### Phase 2 — Org Structure (read-mostly)
+- `OrganizationStore`, `DepartmentStore`, `TeamStore`, `PersonStore`
+- Settings pages: departments tree, teams list, members list, labels
+- `PersonAvatar`, `StatusBadge`, `EmptyState` common components
+
+### Phase 3 — OKR Core (objectives + KRs)
+- `ObjectiveStore`, `KeyResultStore`
+- Objectives list + detail + form
+- KR list + progress bar + measurement form
+- `ObjectiveScopeFilter`, `KRProgressBar`
+
+### Phase 4 — Initiatives + Tracking
+- `InitiativeStore`, `TrackingStore`
+- Initiatives list + detail + lifecycle action bar
+- Activity timeline view
+- OKR alignment tree (`AlignmentStore` + `OKRTreeView`)
+
+### Phase 5 — Tasks (Plane-core pattern)
+- `TaskStore` with grouping + filtering (mirrors Plane's `IssueStore`)
+- Task list/kanban views with `TaskListRoot` pattern
+- Task detail panel, quick-add, assignees, labels
+- Task lifecycle action bar
+
+### Phase 6 — Knowledge Base
+- `KnowledgeStore`
+- Knowledge list + TipTap editor + attachments + external links
+- Share panel, task linker
+- `FileStore` + file upload flow
+
+### Phase 7 — Interventions + Analytics
+- `InterventionStore`
+- Intervention list + KR linker
+- Dashboard `OKRHealthCard`, `InitiativeStatusChart`, `RecentActivityFeed`
+- Analytics page (Recharts charts for OKR progress over time)
+
+### Phase 8 — Admin App
+- `apps/admin` scaffold
+- Organization management, person management, role assignment
+- Email settings + test transport
+
+---
+
+## Notes
+
+- All routes under `/(authenticated)/` require a valid JWT; `AuthGuard` redirects to `/auth/sign-in` on 401.
+- The org slug (`[orgSlug]`) replaces Plane's workspace slug. An `OrganizationContext` provider in `[orgSlug]/layout.tsx` loads and memoizes the current org.
+- The task module intentionally mirrors Plane's issue module as closely as possible (same grouping/filtering/kanban architecture) since the backend's task data model was designed with Plane in mind.
+- Knowledge visibility (`private` / `shared` / `organization`) is enforced server-side; the frontend only needs to show the relevant tab filter.
+- File uploads use the two-step presigned URL pattern — the client never sends file bytes through the NestJS API server.
+- MobX stores call service methods directly (not SWR) for write operations; SWR is used optionally for high-frequency read-only data (labels, persons list) to get automatic background revalidation.

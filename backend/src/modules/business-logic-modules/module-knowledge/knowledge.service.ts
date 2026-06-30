@@ -124,6 +124,9 @@ export class KnowledgeService {
     await this.repo.delete(existing.id, ctx);
   }
 
+  // Scope: own entries + org-visibility + explicit share grants. Task-attached private notes are
+  // intentionally excluded — the join would be expensive and the task-scoped read path
+  // (listForTask) exists for that purpose.
   async search(
     params: IQueryKnowledgeParams,
     ctx: IDBConfigOptions,
